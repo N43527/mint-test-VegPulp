@@ -16,7 +16,7 @@ pls pls work
 
 ## AI-assisted writing
 
-Set up your AI coding tool to work with Mintlify:
+Set up your AI coding tool to work with Mintlify: woah
 
 ```bash
 npx skills add https://mintlify.com/docs
