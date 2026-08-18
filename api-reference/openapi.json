@@ -1,0 +1,23 @@
+{
+  "openapi": "3.0.1",
+  "info": { "title": "VegPulp API", "version": "1.0.0" },
+  "servers": [{ "url": "https://api.vegpulp.example.com" }],
+  "paths": {
+    "/orgs": {
+      "get": { "summary": "List orgs", "responses": { "200": { "description": "OK" } } },
+      "post": { "summary": "Create org", "responses": { "201": { "description": "Created" } } }
+    },
+    "/orgs/{id}": {
+      "get": {
+        "summary": "Get org",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "delete": {
+        "summary": "Delete org",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Deleted" } }
+      }
+    }
+  }
+}
