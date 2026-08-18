@@ -16,6 +16,16 @@
           "index",
           "quickstart"
         ]
+      },
+      {
+        "group": "Phantom Test",
+        "openapi": "api-reference/openapi.json",
+        "pages": [
+          "GET /orgs", 
+          "POST /orgs", 
+          "GET /orgs/{id}", 
+          "DELETE /orgs/{id}"
+        ]
       }
     ],
     "global": {
