@@ -41,7 +41,25 @@
           "icon": "newspaper"
         }
       ]
-    }
+    },
+    "groups": [
+      {
+        "group": "Getting Started",
+        "pages": [
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Phantom Test",
+        "openapi": "api-reference/openapi.json",
+        "pages": [
+          "GET /orgs",
+          "POST /orgs",
+          "GET /orgs/{id}",
+          "DELETE /orgs/{id}"
+        ]
+      }
+    ]
   },
   "logo": {
     "light": "/logo/light.svg",
