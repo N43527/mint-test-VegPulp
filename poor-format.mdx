@@ -1,0 +1,100 @@
+---
+title: 'Poor format fixture'
+description:   "Every block here is written in a style the canonical serializer rewrites"
+icon: 'flask'
+---
+
+Sentence one of the intro lives on its own line.
+Sentence two is on the next line without a blank line.
+Sentence three has *asterisk emphasis* and __double underscore bold__.
+
+## Section with a custom id {#custom-anchor}
+
+*   loosely   spaced bullet with three spaces
+*   second bullet
+    with a lazy continuation line
+
++ plus-marker bullet one
++ plus-marker bullet two
+
+1) paren numbered item
+1) all ones numbering
+1) third item with a nested code block
+
+    ```json
+    { "indented": "four spaces" }
+    ```
+
+| Column One | Two |   Three   |
+|:-----------|----:|:---------:|
+| left       |   1 |  centered |
+| padded     |  22 |    ok     |
+
+<Note>Single-line callout on the tag line</Note>
+
+<Warning>
+Unindented callout body
+with two lines
+</Warning>
+
+<Tabs>
+<Tab title="First">
+Unindented tab body.
+
+- bullet inside a tab
+</Tab>
+<Tab title="Second">
+### Heading inside a tab
+
+Second tab paragraph.
+</Tab>
+</Tabs>
+
+<Steps>
+  <Step title="One">Body on the tag line.</Step>
+  <Step title="Two">
+      Over-indented body.
+  </Step>
+</Steps>
+
+<Steps>
+  <Step>Title-less step one on a single line.</Step>
+  <Step>Title-less step two on a single line.</Step>
+</Steps>
+
+<AccordionGroup>
+  <Accordion title='Single quoted title'>
+Accordion body at column zero.
+  </Accordion>
+</AccordionGroup>
+
+<CardGroup cols={2}>
+  <Card title="Card A" icon="rocket" href="/a">
+    Card A body
+  </Card>
+  <Card title="Card B" icon="star" href="/b">Card B body on the tag line</Card>
+</CardGroup>
+
+<img className="block dark:hidden" src="/images/light.png" alt="Light" />
+<img className="hidden dark:block" src="/images/dark.png" alt="Dark" />
+
+<Frame>
+<img src="/images/framed.png" alt="Framed"/>
+</Frame>
+
+<!-- an html comment -->
+
+Text with a hard break\
+after a backslash, and escaped \_underscores\_ and a literal \* star.
+
+```javascript title="worker.js"
+addEventListener("fetch", (event) => {
+  event.respondWith(handleRequest(event.request));
+});
+```
+
+<ResponseField name="id" type="string" required>
+The identifier.
+</ResponseField>
+
+Final paragraph with no trailing newline
