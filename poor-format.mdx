@@ -1,59 +1,58 @@
 ---
-title: 'Poor format fixture'
-description:   "Every block here is written in a style the canonical serializer rewrites"
-icon: 'flask'
+title: "Poor format fixture"
+description: "Every block here is written in a style the canonical serializer rewrites"
+icon: "flask"
 ---
 
-Sentence one of the intro lives on its own line.
-Sentence two is on the next line without a blank line.
-Sentence three has *asterisk emphasis* and __double underscore bold__.
+Sentence one of the intro lives on its own line. Sentence two is on the next line without a blank line. Sentence three has _asterisk emphasis_ and **double underscore bold**.
 
 ## Section with a custom id {#custom-anchor}
 
-*   loosely   spaced bullet with three spaces
-*   second bullet
-    with a lazy continuation line
+- loosely   spaced bullet with three spaces
+- second bullet with a lazy continuation line
 
-+ plus-marker bullet one
-+ plus-marker bullet two
+- plus-marker bullet one
+- plus-marker bullet two (3)
 
-1) paren numbered item
-1) all ones numbering
-1) third item with a nested code block
+1. paren numbered item
+2. all ones numbering
+3. third item with a nested code block
+   ```json
+   { "indented": "four spaces" }
+   ```
 
-    ```json
-    { "indented": "four spaces" }
-    ```
+| Column One | Two | Three |
+| :-- | --: | :-: |
+| left | 1 | centered |
+| padded | 22 | ok |
 
-| Column One | Two |   Three   |
-|:-----------|----:|:---------:|
-| left       |   1 |  centered |
-| padded     |  22 |    ok     |
-
-<Note>Single-line callout on the tag line</Note>
+<Note>
+  Single-line callout on the tag line
+</Note>
 
 <Warning>
-Unindented callout body
-with two lines
+  Unindented callout body with two lines
 </Warning>
 
 <Tabs>
-<Tab title="First">
-Unindented tab body.
+  <Tab title="First">
+    Unindented tab body.
 
-- bullet inside a tab
-</Tab>
-<Tab title="Second">
-### Heading inside a tab
+    - bullet inside a tab
+  </Tab>
+  <Tab title="Second">
+    ### Heading inside a tab
 
-Second tab paragraph.
-</Tab>
+    Second tab paragraph.
+  </Tab>
 </Tabs>
 
 <Steps>
-  <Step title="One">Body on the tag line.</Step>
+  <Step title="One">
+    Body on the tag line.
+  </Step>
   <Step title="Two">
-      Over-indented body.
+    Over-indented body.
   </Step>
   <Step>
     Title-less step one on a single line.
@@ -64,8 +63,8 @@ Second tab paragraph.
 </Steps>
 
 <AccordionGroup>
-  <Accordion title='Single quoted title'>
-Accordion body at column zero.
+  <Accordion title="Single quoted title">
+    Accordion body at column zero.
   </Accordion>
 </AccordionGroup>
 
@@ -73,20 +72,31 @@ Accordion body at column zero.
   <Card title="Card A" icon="rocket" href="/a">
     Card A body
   </Card>
-  <Card title="Card B" icon="star" href="/b">Card B body on the tag line</Card>
+
+  <Card title="Card B" icon="star" href="/b">
+    Card B body on the tag line
+  </Card>
 </CardGroup>
 
-<img className="block dark:hidden" src="/images/light.png" alt="Light" />
-<img className="hidden dark:block" src="/images/dark.png" alt="Dark" />
+<img
+  className="block dark:hidden"
+  src="/images/light.png"
+  alt="Light"
+/>
+
+<img
+  className="hidden dark:block"
+  src="/images/dark.png"
+  alt="Dark"
+/>
 
 <Frame>
-<img src="/images/framed.png" alt="Framed"/>
+  ![Framed](/images/framed.png)
 </Frame>
 
-<!-- an html comment -->
+{/*  an html comment  */}
 
-Text with a hard break\
-after a backslash, and escaped \_underscores\_ and a literal \* star.
+Text with a hard break<br />after a backslash, and escaped \_underscores\_ and a literal \* star.
 
 ```javascript title="worker.js"
 addEventListener("fetch", (event) => {
@@ -95,7 +105,7 @@ addEventListener("fetch", (event) => {
 ```
 
 <ResponseField name="id" type="string" required>
-The identifier.
+  The identifier.
 </ResponseField>
 
 Final paragraph with no trailing newline
