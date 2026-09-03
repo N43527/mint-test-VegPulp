@@ -1,49 +1,39 @@
 ---
-title:   'Ledger Payments API'
-description:    "Accept payments, issue refunds and move money with the Ledger REST API"
-sidebarTitle: 'API reference'
-'og:title': Ledger Payments API
-icon:  credit-card
+title: "Ledger Payments API"
+description: "Accept payments, issue refunds and move money with the Ledger REST API"
+sidebarTitle: "API reference"
+og:title: "Ledger Payments API"
+icon: "credit-card"
 ---
 
-Ledger Payments API
-===================
+# Ledger Payments API
 
-Welcome to the **Ledger** Payments API.  This page is the
-complete reference for every endpoint,every field and every
-error code you will meet while integrating.It is long on purpose:
-we would rather you find the answer here than open a support ticket.
+Welcome to the **Ledger** Payments API.  This page is the complete reference for every endpoint,every field and every error code you will meet while integrating.It is long on purpose: we would rather you find the answer here than open a support ticket. - test 3
 
-
-
-> The API is served over HTTPS only.  Plain HTTP requests are
-rejected with a `400` and never reach the application servers.
-> Requests are limited to **100** per second per key.
+> The API is served over HTTPS only.  Plain HTTP requests are rejected with a `400` and never reach the application servers. Requests are limited to **100** per second per key.
 
 <Info>
-All timestamps are Unix epoch seconds.   All amounts are integers in
-the smallest unit of the currency (cents,pence,yen).
+  All timestamps are Unix epoch seconds.   All amounts are integers in the smallest unit of the currency (cents,pence,yen).
 </Info>
 
-Base URL
---------
+## Base URL
 
-```
+```text
 https://api.ledger.dev
 ```
 
 Sandbox requests go to the same host.The API key decides the mode:
 
-* keys that start with `sk_test_` hit the sandbox
-* keys that start with  `sk_live_` move real money
-+ keys that start with `rk_` are restricted keys with a subset of permissions
-    + you create them in the dashboard
-    + they can not create payouts
+- keys that start with `sk_test_` hit the sandbox
+- keys that start with  `sk_live_` move real money
 
-## Authentication ##
+- keys that start with `rk_` are restricted keys with a subset of permissions
+  - you create them in the dashboard
+  - they can not create payouts
 
-Pass your secret key in the `Authorization` header using the Bearer scheme.\
-Never ship a secret key in a browser or a mobile app.
+## Authentication
+
+Pass your secret key in the `Authorization` header using the Bearer scheme.<br />Never ship a secret key in a browser or a mobile app.
 
 ```bash
 curl https://api.ledger.dev/v1/payments \
@@ -51,107 +41,102 @@ curl https://api.ledger.dev/v1/payments \
 ```
 
 <Warning>
-    Rotate a key immediately if it leaks.  Old keys keep working for  __24 hours__ after
-    rotation so that in flight deploys do not break.
+  Rotate a key immediately if it leaks.  Old keys keep working for  **24 hours** after rotation so that in flight deploys do not break.
 </Warning>
 
 <Steps>
-<Step title='Create an account'>
-Sign up at [dashboard.ledger.dev](https://dashboard.ledger.dev)   and verify your email.
-</Step>
-<Step title="Grab a test key">
-Open **Developers** → **API keys** and copy the key that starts with `sk_test_`.
+  <Step title="Create an account">
+    Sign up at [dashboard.ledger.dev](https://dashboard.ledger.dev)   and verify your email.
+  </Step>
+  <Step title="Grab a test key">
+    Open **Developers** → **API keys** and copy the key that starts with `sk_test_`.
 
-	<Tip>
-	You can create as many test keys as you like.  Name them after the service that uses them.
-	</Tip>
-</Step>
-    <Step title="Make your first request">
+    <Tip>
+      You can create as many test keys as you like.  Name them after the service that uses them.
+    </Tip>
+  </Step>
+  <Step title="Make your first request">
     Run the cURL command above.   You should see an empty list:
 
     ```json
     {  "data": [],
        "has_more": false }
     ```
-    </Step>
-<Step title="Go live">
-Replace the test key with a live key and flip the *Live mode* toggle in the dashboard.
-</Step>
+  </Step>
+  <Step title="Go live">
+    Replace the test key with a live key and flip the _Live mode_ toggle in the dashboard.
+  </Step>
 </Steps>
 
+## Idempotency
 
-
-
-Idempotency
------------
-
-Every `POST` accepts an `Idempotency-Key` header.   We store the first response for
-24 hours and replay it for any retry that carries the same key.
+Every `POST` accepts an `Idempotency-Key` header.   We store the first response for 24 hours and replay it for any retry that carries the same key.
 
 1. generate a UUID v4 per logical operation
-1. send it on the first attempt
-1. reuse it on **every** retry of that operation
-1. never reuse it for a different operation
+2. send it on the first attempt
+3. reuse it on **every** retry of that operation
+4. never reuse it for a different operation
 
 | Scenario | What happens |
-|--|--|
+| --- | --- |
 | same key, same body | original response is replayed |
-|same key, different body|`409 idempotency_key_reused`|
+| same key, different body | `409 idempotency_key_reused` |
 | key older than 24h | treated as a new request |
 
 <AccordionGroup>
-<Accordion title="Why 24 hours?">
-It is long enough to survive an incident and short enough that keys do not pile up.
-</Accordion>
-   <Accordion title='Can I choose my own key format?'>
-   Yes.Anything up to 255 characters.UUIDs are just a convention.
-   </Accordion>
-<Accordion title="Do GET requests need a key?">
-No.   Reads are naturally idempotent and the header is ignored.
-</Accordion>
+  <Accordion title="Why 24 hours?">
+    It is long enough to survive an incident and short enough that keys do not pile up.
+  </Accordion>
+
+  <Accordion title="Can I choose my own key format?">
+    Yes.Anything up to 255 characters.UUIDs are just a convention.
+  </Accordion>
+
+  <Accordion title="Do GET requests need a key?">
+    No.   Reads are naturally idempotent and the header is ignored.
+  </Accordion>
 </AccordionGroup>
 
 <Tabs>
-<Tab title="Node">
-```javascript
-const payment = await ledger.payments.create(
-  { amount: 1999, currency: 'usd' },
-  { idempotencyKey: crypto.randomUUID() }
-);
-```
-</Tab>
-<Tab title="Python">
-```python
-payment = ledger.Payment.create(
-    amount=1999, currency="usd",
-    idempotency_key=str(uuid.uuid4()))
-```
-</Tab>
-    <Tab title="Ruby">
+  <Tab title="Node">
+    ```javascript
+    const payment = await ledger.payments.create(
+      { amount: 1999, currency: 'usd' },
+      { idempotencyKey: crypto.randomUUID() }
+    );
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    payment = ledger.Payment.create(
+        amount=1999, currency="usd",
+        idempotency_key=str(uuid.uuid4()))
+    ```
+  </Tab>
+  <Tab title="Ruby">
     ```ruby
     payment = Ledger::Payment.create({amount: 1999, currency: 'usd'}, idempotency_key: SecureRandom.uuid)
     ```
-    </Tab>
+  </Tab>
 </Tabs>
 
-- - -
+---
 
 ## Errors
 
-Ledger uses conventional HTTP status codes.   Codes in the `2xx` range mean success,`4xx` means
-you sent something we could not accept and `5xx` means we broke.
+Ledger uses conventional HTTP status codes.   Codes in the `2xx` range mean success,`4xx` means you sent something we could not accept and `5xx` means we broke.
 
-Status | Meaning
----|---
-200 | Everything worked
-201|Object created
-400 | The request was malformed,   see `message`
-401 | No valid API key
-402 |  The request was fine but the payment failed
-404 | The object does not exist or belongs to another account
-409 | Idempotency conflict
-429 | Too many requests,  slow down
-500 | Our fault.Retry with backoff
+| Status | Meaning |
+| --- | --- |
+| 200 | Everything worked |
+| 201 | Object created |
+| 400 | The request was malformed,   see `message` |
+| 401 | No valid API key |
+| 402 | The request was fine but the payment failed |
+| 404 | The object does not exist or belongs to another account |
+| 409 | Idempotency conflict |
+| 429 | Too many requests,  slow down |
+| 500 | Our fault.Retry with backoff |
 
 The error body always has the same shape:
 
@@ -168,39 +153,30 @@ The error body always has the same shape:
 
 _Tip:_ the `param` field tells you which request field caused the problem, when there is one.
 
-Create a payment
--------------------
+## Create a payment
 
-
-<!-- TODO(payment): rewrite this intro before launch -->
+{/*  TODO(payment): rewrite this intro before launch  */}
 
 `POST`   `/v1/payments`
 
-Creates a new payment intent and reserves funds
-on the customer card. The request is idempotent
-when you send an Idempotency-Key header, and
-retries within twenty four hours return the
-original response instead of creating a second
-payment.
+Creates a new payment intent and reserves funds on the customer card. The request is idempotent when you send an Idempotency-Key header, and retries within twenty four hours return the original response instead of creating a second payment.
 
-
-
-<ParamField path='amount' type='integer'  required>
-The amount to charge,in the smallest unit of the currency.
-   Must be at least 50 and no more than 99999999.
+<ParamField path="amount" type="integer" required>
+  The amount to charge,in the smallest unit of the currency. Must be at least 50 and no more than 99999999.
 </ParamField>
+
 <ParamField path="currency" type="string" required>
-Three-letter ISO code.    Lowercase.
-</ParamField>
-<ParamField path="customer" type="string">
-   ID of an existing customer. When omitted the payment is created as a guest payment
-   and no payment method is saved.
+  Three-letter ISO code.    Lowercase.
 </ParamField>
 
+<ParamField path="customer" type="string">
+  ID of an existing customer. When omitted the payment is created as a guest payment and no payment method is saved.
+</ParamField>
 
 ### Request
 
 <CodeGroup>
+
 ```bash cURL
 curl -X POST https://api.ledger.dev/v1/payments \
      -H "Authorization: Bearer sk_test_123" \
@@ -216,91 +192,79 @@ const payment = await ledger.payments.create({
 });
 console.log(payment.id)
 ```
+
 ```python Python
 import ledger
 ledger.api_key = "sk_test_123"
 payment = ledger.Payment.create(amount=1000, currency="usd")
 print(payment.id)
 ```
+
 </CodeGroup>
-
-
 
 ### Response fields
 
-Field | Type | Description
----|:---:|---
-id | string | Unique identifier of the payment.
-| amount   |   integer | Amount in the smallest currency unit.  Cents for USD. |
-currency | string | Three letter ISO currency code,lowercase.
-| status   |   enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
-metadata | object | Up to 50 key value pairs that you control.
-| created   |   timestamp | Unix epoch seconds when the object was created |
+| Field | Type | Description |
+| --- | :-: | --- |
+| id | string | Unique identifier of the payment. |
+| amount | integer | Amount in the smallest currency unit.  Cents for USD. |
+| currency | string | Three letter ISO currency code,lowercase. |
+| status | enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
+| metadata | object | Up to 50 key value pairs that you control. |
+| created | timestamp | Unix epoch seconds when the object was created |
 
 <ResponseField name="id" type="string">
-The identifier.Store it,you will need it for refunds and disputes.
-</ResponseField>
-<ResponseField name="status" type="enum">
-* `pending` :  waiting on the customer
-*    `succeeded`: funds captured
-* `failed`  : declined by the issuer,see `failure_code`
+  The identifier.Store it,you will need it for refunds and disputes.
 </ResponseField>
 
+<ResponseField name="status" type="enum">
+  - `pending` :  waiting on the customer
+  - `succeeded`: funds captured
+  - `failed`  : declined by the issuer,see `failure_code`
+</ResponseField>
 
 <Note>
-Test mode payments never move real money. Use the card
-number 4242 4242 4242 4242 with any future expiry and any
-CVC to simulate a successful payment, or 4000 0000 0000 0002
-to simulate a decline.
+  Test mode payments never move real money. Use the card number 4242 4242 4242 4242 with any future expiry and any CVC to simulate a successful payment, or 4000 0000 0000 0002 to simulate a decline.
 </Note>
 
 **Common failure codes**
 
 1. `card_declined` -- the issuer refused the charge
-1. `insufficient_funds`--   the customer does not have enough balance
-1. `expired_card` --the card expiry date is in the past
-1.   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
-    * retries are safe
-    * do **not** change the amount between retries
+2. `insufficient_funds`--   the customer does not have enough balance
+3. `expired_card` --the card expiry date is in the past
+4. `processing_error` -- something went wrong on our side,  retry with the same idempotency key
+
+- retries are safe
+- do **not** change the amount between retries
+
 1. `authentication_required` -- 3DS challenge needed
 
-***
+---
 
+## Retrieve a payment
 
-## Retrieve a payment ##
-
-
-
-<!-- TODO(payment): rewrite this intro before launch -->
+{/*  TODO(payment): rewrite this intro before launch  */}
 
 `GET`   `/v1/payments/{id}`
 
-Fetches a single payment by its identifier,
-including the latest status. The request is
-idempotent when you send an Idempotency-Key
-header, and retries within twenty four hours
-return the original response instead of creating
-a second payment.
+Fetches a single payment by its identifier, including the latest status. The request is idempotent when you send an Idempotency-Key header, and retries within twenty four hours return the original response instead of creating a second payment.
 
-
-
-
-	<ParamField path='amount' type='integer'  required>
-	The amount to charge,in the smallest unit of the currency.
-	   Must be at least 50 and no more than 99999999.
-	</ParamField>
-<ParamField path="currency" type="string" required>
-Three-letter ISO code.    Lowercase.
+<ParamField path="amount" type="integer" required>
+  The amount to charge,in the smallest unit of the currency. Must be at least 50 and no more than 99999999.
 </ParamField>
-	<ParamField path="customer" type="string">
-	   ID of an existing customer. When omitted the payment is created as a guest payment
-	   and no payment method is saved.
-	</ParamField>
 
+<ParamField path="currency" type="string" required>
+  Three-letter ISO code.    Lowercase.
+</ParamField>
+
+<ParamField path="customer" type="string">
+  ID of an existing customer. When omitted the payment is created as a guest payment and no payment method is saved.
+</ParamField>
 
 ### Request
 
 <CodeGroup>
+
 ```bash cURL
 curl -X GET https://api.ledger.dev/v1/payments/pay_9f3k2 \
      -H "Authorization: Bearer sk_test_123" \
@@ -316,94 +280,79 @@ const payment = await ledger.payments.create({
 });
 console.log(payment.id)
 ```
+
 ```python Python
 import ledger
 ledger.api_key = "sk_test_123"
 payment = ledger.Payment.create(amount=1250, currency="usd")
 print(payment.id)
 ```
+
 </CodeGroup>
-
-
-
 
 ### Response fields
 
-Field | Type | Description
----|:---:|---
-id | string | Unique identifier of the payment.
-| amount   |   integer | Amount in the smallest currency unit.  Cents for USD. |
-currency | string | Three letter ISO currency code,lowercase.
-| status   |   enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
-metadata | object | Up to 50 key value pairs that you control.
-| created   |   timestamp | Unix epoch seconds when the object was created |
+| Field | Type | Description |
+| --- | :-: | --- |
+| id | string | Unique identifier of the payment. |
+| amount | integer | Amount in the smallest currency unit.  Cents for USD. |
+| currency | string | Three letter ISO currency code,lowercase. |
+| status | enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
+| metadata | object | Up to 50 key value pairs that you control. |
+| created | timestamp | Unix epoch seconds when the object was created |
 
-<ResponseField   name="id"   type="string" >
-The identifier.Store it,you will need it for refunds and disputes.
+<ResponseField name="id" type="string">
+  The identifier.Store it,you will need it for refunds and disputes.
 </ResponseField>
+
 <ResponseField name="status" type="enum">
-- `pending` :  waiting on the customer
--    `succeeded`: funds captured
-- `failed`  : declined by the issuer,see `failure_code`
+  - `pending` :  waiting on the customer
+  - `succeeded`: funds captured
+  - `failed`  : declined by the issuer,see `failure_code`
 </ResponseField>
-
 
 <Warning>
-	Test mode payments never move real money. Use the card
-number 4242 4242 4242 4242 with any future expiry and any
-CVC to simulate a successful payment, or 4000 0000 0000 0002
-to simulate a decline.
+  Test mode payments never move real money. Use the card number 4242 4242 4242 4242 with any future expiry and any CVC to simulate a successful payment, or 4000 0000 0000 0002 to simulate a decline.
 </Warning>
 
 **Common failure codes**
 
-1) `card_declined` -- the issuer refused the charge
-1) `insufficient_funds`--   the customer does not have enough balance
-1) `expired_card` --the card expiry date is in the past
-1)   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
-    - retries are safe
-    - do **not** change the amount between retries
-1) `authentication_required` -- 3DS challenge needed
+1. `card_declined` -- the issuer refused the charge
+2. `insufficient_funds`--   the customer does not have enough balance
+3. `expired_card` --the card expiry date is in the past
+4. `processing_error` -- something went wrong on our side,  retry with the same idempotency key
 
-***
+- retries are safe
+- do **not** change the amount between retries
 
+1. `authentication_required` -- 3DS challenge needed
 
-##   List payments   [#payment-2]
+---
 
+## List payments   [#payment-2]
 
-
-
-<!-- TODO(payment): rewrite this intro before launch -->
+{/*  TODO(payment): rewrite this intro before launch  */}
 
 `GET`   `/v1/payments`
 
-Returns payments in reverse chronological order
-with cursor pagination. The request is idempotent
-when you send an Idempotency-Key header, and
-retries within twenty four hours return the
-original response instead of creating a second
-payment.
+Returns payments in reverse chronological order with cursor pagination. The request is idempotent when you send an Idempotency-Key header, and retries within twenty four hours return the original response instead of creating a second payment.
 
-
-
-
-
-<ParamField path='amount' type='integer'  required>
-The amount to charge,in the smallest unit of the currency.
-   Must be at least 50 and no more than 99999999.
+<ParamField path="amount" type="integer" required>
+  The amount to charge,in the smallest unit of the currency. Must be at least 50 and no more than 99999999.
 </ParamField>
+
 <ParamField path="currency" type="string" required>
-Three-letter ISO code.    Lowercase.
-</ParamField>
-<ParamField path="customer" type="string">
-   ID of an existing customer. When omitted the payment is created as a guest payment
-   and no payment method is saved.
+  Three-letter ISO code.    Lowercase.
 </ParamField>
 
+<ParamField path="customer" type="string">
+  ID of an existing customer. When omitted the payment is created as a guest payment and no payment method is saved.
+</ParamField>
 
 ### Request
 
 <CodeGroup>
+
 ```bash cURL
 curl -X GET https://api.ledger.dev/v1/payments \
      -H "Authorization: Bearer sk_test_123" \
@@ -419,91 +368,79 @@ const payment = await ledger.payments.create({
 });
 console.log(payment.id)
 ```
+
 ```python Python
 import ledger
 ledger.api_key = "sk_test_123"
 payment = ledger.Payment.create(amount=1500, currency="usd")
 print(payment.id)
 ```
+
 </CodeGroup>
-
-
-
-
 
 ### Response fields
 
-Field | Type | Description
----|:---:|---
-id | string | Unique identifier of the payment.
-| amount   |   integer | Amount in the smallest currency unit.  Cents for USD. |
-currency | string | Three letter ISO currency code,lowercase.
-| status   |   enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
-metadata | object | Up to 50 key value pairs that you control.
-| created   |   timestamp | Unix epoch seconds when the object was created |
+| Field | Type | Description |
+| --- | :-: | --- |
+| id | string | Unique identifier of the payment. |
+| amount | integer | Amount in the smallest currency unit.  Cents for USD. |
+| currency | string | Three letter ISO currency code,lowercase. |
+| status | enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
+| metadata | object | Up to 50 key value pairs that you control. |
+| created | timestamp | Unix epoch seconds when the object was created |
 
 <ResponseField name="id" type="string">
-The identifier.Store it,you will need it for refunds and disputes.
-</ResponseField>
-<ResponseField name="status" type="enum">
-+ `pending` :  waiting on the customer
-+    `succeeded`: funds captured
-+ `failed`  : declined by the issuer,see `failure_code`
+  The identifier.Store it,you will need it for refunds and disputes.
 </ResponseField>
 
+<ResponseField name="status" type="enum">
+  - `pending` :  waiting on the customer
+  - `succeeded`: funds captured
+  - `failed`  : declined by the issuer,see `failure_code`
+</ResponseField>
 
 <Tip>
-Test mode payments never move real money. Use the card
-number 4242 4242 4242 4242 with any future expiry and any
-CVC to simulate a successful payment, or 4000 0000 0000 0002
-to simulate a decline.
+  Test mode payments never move real money. Use the card number 4242 4242 4242 4242 with any future expiry and any CVC to simulate a successful payment, or 4000 0000 0000 0002 to simulate a decline.
 </Tip>
 
 **Common failure codes**
 
 3. `card_declined` -- the issuer refused the charge
-3. `insufficient_funds`--   the customer does not have enough balance
-3. `expired_card` --the card expiry date is in the past
-3.   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
-    + retries are safe
-    + do **not** change the amount between retries
+4. `insufficient_funds`--   the customer does not have enough balance
+5. `expired_card` --the card expiry date is in the past
+6. `processing_error` -- something went wrong on our side,  retry with the same idempotency key
+
+- retries are safe
+- do **not** change the amount between retries
+
 3. `authentication_required` -- 3DS challenge needed
 
-***
-
+---
 
 ## Capture a payment
 
-
-<!-- TODO(payment): rewrite this intro before launch -->
+{/*  TODO(payment): rewrite this intro before launch  */}
 
 `POST`   `/v1/payments/{id}/capture`
 
-Captures previously authorized funds. Partial
-captures are supported. The request is idempotent
-when you send an Idempotency-Key header, and
-retries within twenty four hours return the
-original response instead of creating a second
-payment.
+Captures previously authorized funds. Partial captures are supported. The request is idempotent when you send an Idempotency-Key header, and retries within twenty four hours return the original response instead of creating a second payment.
 
-
-
-	<ParamField path='amount' type='integer'  required>
-	The amount to charge,in the smallest unit of the currency.
-	   Must be at least 50 and no more than 99999999.
-	</ParamField>
-<ParamField path="currency" type="string" required>
-Three-letter ISO code.    Lowercase.
+<ParamField path="amount" type="integer" required>
+  The amount to charge,in the smallest unit of the currency. Must be at least 50 and no more than 99999999.
 </ParamField>
-	<ParamField path="customer" type="string">
-	   ID of an existing customer. When omitted the payment is created as a guest payment
-	   and no payment method is saved.
-	</ParamField>
 
+<ParamField path="currency" type="string" required>
+  Three-letter ISO code.    Lowercase.
+</ParamField>
+
+<ParamField path="customer" type="string">
+  ID of an existing customer. When omitted the payment is created as a guest payment and no payment method is saved.
+</ParamField>
 
 ### Request
 
 <CodeGroup>
+
 ```bash cURL
 curl -X POST https://api.ledger.dev/v1/payments/pay_9f3k2/capture \
      -H "Authorization: Bearer sk_test_123" \
@@ -519,91 +456,79 @@ const payment = await ledger.payments.create({
 });
 console.log(payment.id)
 ```
+
 ```python Python
 import ledger
 ledger.api_key = "sk_test_123"
 payment = ledger.Payment.create(amount=1750, currency="usd")
 print(payment.id)
 ```
+
 </CodeGroup>
-
-
 
 ### Response fields
 
-Field | Type | Description
----|:---:|---
-id | string | Unique identifier of the payment.
-| amount   |   integer | Amount in the smallest currency unit.  Cents for USD. |
-currency | string | Three letter ISO currency code,lowercase.
-| status   |   enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
-metadata | object | Up to 50 key value pairs that you control.
-| created   |   timestamp | Unix epoch seconds when the object was created |
+| Field | Type | Description |
+| --- | :-: | --- |
+| id | string | Unique identifier of the payment. |
+| amount | integer | Amount in the smallest currency unit.  Cents for USD. |
+| currency | string | Three letter ISO currency code,lowercase. |
+| status | enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
+| metadata | object | Up to 50 key value pairs that you control. |
+| created | timestamp | Unix epoch seconds when the object was created |
 
-<ResponseField   name="id"   type="string" >
-The identifier.Store it,you will need it for refunds and disputes.
+<ResponseField name="id" type="string">
+  The identifier.Store it,you will need it for refunds and disputes.
 </ResponseField>
+
 <ResponseField name="status" type="enum">
-* `pending` :  waiting on the customer
-*    `succeeded`: funds captured
-* `failed`  : declined by the issuer,see `failure_code`
+  - `pending` :  waiting on the customer
+  - `succeeded`: funds captured
+  - `failed`  : declined by the issuer,see `failure_code`
 </ResponseField>
-
 
 <Note>
-	Test mode payments never move real money. Use the card
-number 4242 4242 4242 4242 with any future expiry and any
-CVC to simulate a successful payment, or 4000 0000 0000 0002
-to simulate a decline.
+  Test mode payments never move real money. Use the card number 4242 4242 4242 4242 with any future expiry and any CVC to simulate a successful payment, or 4000 0000 0000 0002 to simulate a decline.
 </Note>
 
 **Common failure codes**
 
 1. `card_declined` -- the issuer refused the charge
-1. `insufficient_funds`--   the customer does not have enough balance
-1. `expired_card` --the card expiry date is in the past
-1.   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
-    * retries are safe
-    * do **not** change the amount between retries
+2. `insufficient_funds`--   the customer does not have enough balance
+3. `expired_card` --the card expiry date is in the past
+4. `processing_error` -- something went wrong on our side,  retry with the same idempotency key
+
+- retries are safe
+- do **not** change the amount between retries
+
 1. `authentication_required` -- 3DS challenge needed
 
-***
+---
 
+## Refund a payment
 
-Refund a payment
--------------------
-
-
-
-<!-- TODO(refund): rewrite this intro before launch -->
+{/*  TODO(refund): rewrite this intro before launch  */}
 
 `POST`   `/v1/refunds`
 
-Issues a full or partial refund against a captured
-payment. The request is idempotent when you send an
-Idempotency-Key header, and retries within twenty
-four hours return the original response instead of
-creating a second refund.
+Issues a full or partial refund against a captured payment. The request is idempotent when you send an Idempotency-Key header, and retries within twenty four hours return the original response instead of creating a second refund.
 
-
-
-
-<ParamField path='amount' type='integer'  required>
-The amount to charge,in the smallest unit of the currency.
-   Must be at least 50 and no more than 99999999.
+<ParamField path="amount" type="integer" required>
+  The amount to charge,in the smallest unit of the currency. Must be at least 50 and no more than 99999999.
 </ParamField>
+
 <ParamField path="currency" type="string" required>
-Three-letter ISO code.    Lowercase.
-</ParamField>
-<ParamField path="customer" type="string">
-   ID of an existing customer. When omitted the refund is created as a guest refund
-   and no payment method is saved.
+  Three-letter ISO code.    Lowercase.
 </ParamField>
 
+<ParamField path="customer" type="string">
+  ID of an existing customer. When omitted the refund is created as a guest refund and no payment method is saved.
+</ParamField>
 
 ### Request
 
 <CodeGroup>
+
 ```bash cURL
 curl -X POST https://api.ledger.dev/v1/refunds \
      -H "Authorization: Bearer sk_test_123" \
@@ -619,93 +544,79 @@ const refund = await ledger.refunds.create({
 });
 console.log(refund.id)
 ```
+
 ```python Python
 import ledger
 ledger.api_key = "sk_test_123"
 refund = ledger.Refund.create(amount=2000, currency="usd")
 print(refund.id)
 ```
+
 </CodeGroup>
-
-
-
 
 ### Response fields
 
-Field | Type | Description
----|:---:|---
-id | string | Unique identifier of the refund.
-| amount   |   integer | Amount in the smallest currency unit.  Cents for USD. |
-currency | string | Three letter ISO currency code,lowercase.
-| status   |   enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
-metadata | object | Up to 50 key value pairs that you control.
-| created   |   timestamp | Unix epoch seconds when the object was created |
+| Field | Type | Description |
+| --- | :-: | --- |
+| id | string | Unique identifier of the refund. |
+| amount | integer | Amount in the smallest currency unit.  Cents for USD. |
+| currency | string | Three letter ISO currency code,lowercase. |
+| status | enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
+| metadata | object | Up to 50 key value pairs that you control. |
+| created | timestamp | Unix epoch seconds when the object was created |
 
 <ResponseField name="id" type="string">
-The identifier.Store it,you will need it for refunds and disputes.
-</ResponseField>
-<ResponseField name="status" type="enum">
-- `pending` :  waiting on the customer
--    `succeeded`: funds captured
-- `failed`  : declined by the issuer,see `failure_code`
+  The identifier.Store it,you will need it for refunds and disputes.
 </ResponseField>
 
+<ResponseField name="status" type="enum">
+  - `pending` :  waiting on the customer
+  - `succeeded`: funds captured
+  - `failed`  : declined by the issuer,see `failure_code`
+</ResponseField>
 
 <Warning>
-Test mode refunds never move real money. Use the card number
-4242 4242 4242 4242 with any future expiry and any CVC to
-simulate a successful refund, or 4000 0000 0000 0002 to
-simulate a decline.
+  Test mode refunds never move real money. Use the card number 4242 4242 4242 4242 with any future expiry and any CVC to simulate a successful refund, or 4000 0000 0000 0002 to simulate a decline.
 </Warning>
 
 **Common failure codes**
 
-1) `card_declined` -- the issuer refused the charge
-1) `insufficient_funds`--   the customer does not have enough balance
-1) `expired_card` --the card expiry date is in the past
-1)   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
-    - retries are safe
-    - do **not** change the amount between retries
-1) `authentication_required` -- 3DS challenge needed
+1. `card_declined` -- the issuer refused the charge
+2. `insufficient_funds`--   the customer does not have enough balance
+3. `expired_card` --the card expiry date is in the past
+4. `processing_error` -- something went wrong on our side,  retry with the same idempotency key
 
-***
+- retries are safe
+- do **not** change the amount between retries
 
+1. `authentication_required` -- 3DS challenge needed
 
-## Create a customer ##
+---
 
+## Create a customer
 
-
-
-<!-- TODO(customer): rewrite this intro before launch -->
+{/*  TODO(customer): rewrite this intro before launch  */}
 
 `POST`   `/v1/customers`
 
-Stores a customer record so that payment methods can
-be reused later. The request is idempotent when you
-send an Idempotency-Key header, and retries within
-twenty four hours return the original response
-instead of creating a second customer.
+Stores a customer record so that payment methods can be reused later. The request is idempotent when you send an Idempotency-Key header, and retries within twenty four hours return the original response instead of creating a second customer.
 
-
-
-
-
-	<ParamField path='amount' type='integer'  required>
-	The amount to charge,in the smallest unit of the currency.
-	   Must be at least 50 and no more than 99999999.
-	</ParamField>
-<ParamField path="currency" type="string" required>
-Three-letter ISO code.    Lowercase.
+<ParamField path="amount" type="integer" required>
+  The amount to charge,in the smallest unit of the currency. Must be at least 50 and no more than 99999999.
 </ParamField>
-	<ParamField path="customer" type="string">
-	   ID of an existing customer. When omitted the customer is created as a guest customer
-	   and no payment method is saved.
-	</ParamField>
 
+<ParamField path="currency" type="string" required>
+  Three-letter ISO code.    Lowercase.
+</ParamField>
+
+<ParamField path="customer" type="string">
+  ID of an existing customer. When omitted the customer is created as a guest customer and no payment method is saved.
+</ParamField>
 
 ### Request
 
 <CodeGroup>
+
 ```bash cURL
 curl -X POST https://api.ledger.dev/v1/customers \
      -H "Authorization: Bearer sk_test_123" \
@@ -721,90 +632,79 @@ const customer = await ledger.customers.create({
 });
 console.log(customer.id)
 ```
+
 ```python Python
 import ledger
 ledger.api_key = "sk_test_123"
 customer = ledger.Customer.create(amount=2250, currency="usd")
 print(customer.id)
 ```
+
 </CodeGroup>
-
-
-
-
 
 ### Response fields
 
-Field | Type | Description
----|:---:|---
-id | string | Unique identifier of the customer.
-| amount   |   integer | Amount in the smallest currency unit.  Cents for USD. |
-currency | string | Three letter ISO currency code,lowercase.
-| status   |   enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
-metadata | object | Up to 50 key value pairs that you control.
-| created   |   timestamp | Unix epoch seconds when the object was created |
+| Field | Type | Description |
+| --- | :-: | --- |
+| id | string | Unique identifier of the customer. |
+| amount | integer | Amount in the smallest currency unit.  Cents for USD. |
+| currency | string | Three letter ISO currency code,lowercase. |
+| status | enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
+| metadata | object | Up to 50 key value pairs that you control. |
+| created | timestamp | Unix epoch seconds when the object was created |
 
-<ResponseField   name="id"   type="string" >
-The identifier.Store it,you will need it for refunds and disputes.
+<ResponseField name="id" type="string">
+  The identifier.Store it,you will need it for refunds and disputes.
 </ResponseField>
+
 <ResponseField name="status" type="enum">
-+ `pending` :  waiting on the customer
-+    `succeeded`: funds captured
-+ `failed`  : declined by the issuer,see `failure_code`
+  - `pending` :  waiting on the customer
+  - `succeeded`: funds captured
+  - `failed`  : declined by the issuer,see `failure_code`
 </ResponseField>
-
 
 <Tip>
-	Test mode customers never move real money. Use the card
-number 4242 4242 4242 4242 with any future expiry and any
-CVC to simulate a successful customer, or 4000 0000 0000
-0002 to simulate a decline.
+  Test mode customers never move real money. Use the card number 4242 4242 4242 4242 with any future expiry and any CVC to simulate a successful customer, or 4000 0000 0000 0002 to simulate a decline.
 </Tip>
 
 **Common failure codes**
 
 3. `card_declined` -- the issuer refused the charge
-3. `insufficient_funds`--   the customer does not have enough balance
-3. `expired_card` --the card expiry date is in the past
-3.   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
-    + retries are safe
-    + do **not** change the amount between retries
+4. `insufficient_funds`--   the customer does not have enough balance
+5. `expired_card` --the card expiry date is in the past
+6. `processing_error` -- something went wrong on our side,  retry with the same idempotency key
+
+- retries are safe
+- do **not** change the amount between retries
+
 3. `authentication_required` -- 3DS challenge needed
 
-***
+---
 
+## Attach a payment method   [#method-6]
 
-##   Attach a payment method   [#method-6]
-
-
-<!-- TODO(method): rewrite this intro before launch -->
+{/*  TODO(method): rewrite this intro before launch  */}
 
 `POST`   `/v1/customers/{id}/methods`
 
-Attaches a tokenized card or bank account to an
-existing customer. The request is idempotent when you
-send an Idempotency-Key header, and retries within
-twenty four hours return the original response instead
-of creating a second method.
+Attaches a tokenized card or bank account to an existing customer. The request is idempotent when you send an Idempotency-Key header, and retries within twenty four hours return the original response instead of creating a second method.
 
-
-
-<ParamField path='amount' type='integer'  required>
-The amount to charge,in the smallest unit of the currency.
-   Must be at least 50 and no more than 99999999.
+<ParamField path="amount" type="integer" required>
+  The amount to charge,in the smallest unit of the currency. Must be at least 50 and no more than 99999999.
 </ParamField>
+
 <ParamField path="currency" type="string" required>
-Three-letter ISO code.    Lowercase.
-</ParamField>
-<ParamField path="customer" type="string">
-   ID of an existing customer. When omitted the method is created as a guest method
-   and no payment method is saved.
+  Three-letter ISO code.    Lowercase.
 </ParamField>
 
+<ParamField path="customer" type="string">
+  ID of an existing customer. When omitted the method is created as a guest method and no payment method is saved.
+</ParamField>
 
 ### Request
 
 <CodeGroup>
+
 ```bash cURL
 curl -X POST https://api.ledger.dev/v1/customers/pay_9f3k2/methods \
      -H "Authorization: Bearer sk_test_123" \
@@ -820,90 +720,79 @@ const method = await ledger.methods.create({
 });
 console.log(method.id)
 ```
+
 ```python Python
 import ledger
 ledger.api_key = "sk_test_123"
 method = ledger.Method.create(amount=2500, currency="usd")
 print(method.id)
 ```
+
 </CodeGroup>
-
-
 
 ### Response fields
 
-Field | Type | Description
----|:---:|---
-id | string | Unique identifier of the method.
-| amount   |   integer | Amount in the smallest currency unit.  Cents for USD. |
-currency | string | Three letter ISO currency code,lowercase.
-| status   |   enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
-metadata | object | Up to 50 key value pairs that you control.
-| created   |   timestamp | Unix epoch seconds when the object was created |
+| Field | Type | Description |
+| --- | :-: | --- |
+| id | string | Unique identifier of the method. |
+| amount | integer | Amount in the smallest currency unit.  Cents for USD. |
+| currency | string | Three letter ISO currency code,lowercase. |
+| status | enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
+| metadata | object | Up to 50 key value pairs that you control. |
+| created | timestamp | Unix epoch seconds when the object was created |
 
 <ResponseField name="id" type="string">
-The identifier.Store it,you will need it for refunds and disputes.
-</ResponseField>
-<ResponseField name="status" type="enum">
-* `pending` :  waiting on the customer
-*    `succeeded`: funds captured
-* `failed`  : declined by the issuer,see `failure_code`
+  The identifier.Store it,you will need it for refunds and disputes.
 </ResponseField>
 
+<ResponseField name="status" type="enum">
+  - `pending` :  waiting on the customer
+  - `succeeded`: funds captured
+  - `failed`  : declined by the issuer,see `failure_code`
+</ResponseField>
 
 <Note>
-Test mode methods never move real money. Use the card number
-4242 4242 4242 4242 with any future expiry and any CVC to
-simulate a successful method, or 4000 0000 0000 0002 to
-simulate a decline.
+  Test mode methods never move real money. Use the card number 4242 4242 4242 4242 with any future expiry and any CVC to simulate a successful method, or 4000 0000 0000 0002 to simulate a decline.
 </Note>
 
 **Common failure codes**
 
 1. `card_declined` -- the issuer refused the charge
-1. `insufficient_funds`--   the customer does not have enough balance
-1. `expired_card` --the card expiry date is in the past
-1.   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
-    * retries are safe
-    * do **not** change the amount between retries
+2. `insufficient_funds`--   the customer does not have enough balance
+3. `expired_card` --the card expiry date is in the past
+4. `processing_error` -- something went wrong on our side,  retry with the same idempotency key
+
+- retries are safe
+- do **not** change the amount between retries
+
 1. `authentication_required` -- 3DS challenge needed
 
-***
-
+---
 
 ## Create a payout
 
-
-
-<!-- TODO(payout): rewrite this intro before launch -->
+{/*  TODO(payout): rewrite this intro before launch  */}
 
 `POST`   `/v1/payouts`
 
-Moves settled balance to the connected bank account of
-the merchant. The request is idempotent when you send
-an Idempotency-Key header, and retries within twenty
-four hours return the original response instead of
-creating a second payout.
+Moves settled balance to the connected bank account of the merchant. The request is idempotent when you send an Idempotency-Key header, and retries within twenty four hours return the original response instead of creating a second payout.
 
-
-
-
-	<ParamField path='amount' type='integer'  required>
-	The amount to charge,in the smallest unit of the currency.
-	   Must be at least 50 and no more than 99999999.
-	</ParamField>
-<ParamField path="currency" type="string" required>
-Three-letter ISO code.    Lowercase.
+<ParamField path="amount" type="integer" required>
+  The amount to charge,in the smallest unit of the currency. Must be at least 50 and no more than 99999999.
 </ParamField>
-	<ParamField path="customer" type="string">
-	   ID of an existing customer. When omitted the payout is created as a guest payout
-	   and no payment method is saved.
-	</ParamField>
 
+<ParamField path="currency" type="string" required>
+  Three-letter ISO code.    Lowercase.
+</ParamField>
+
+<ParamField path="customer" type="string">
+  ID of an existing customer. When omitted the payout is created as a guest payout and no payment method is saved.
+</ParamField>
 
 ### Request
 
 <CodeGroup>
+
 ```bash cURL
 curl -X POST https://api.ledger.dev/v1/payouts \
      -H "Authorization: Bearer sk_test_123" \
@@ -919,94 +808,79 @@ const payout = await ledger.payouts.create({
 });
 console.log(payout.id)
 ```
+
 ```python Python
 import ledger
 ledger.api_key = "sk_test_123"
 payout = ledger.Payout.create(amount=2750, currency="usd")
 print(payout.id)
 ```
+
 </CodeGroup>
-
-
-
 
 ### Response fields
 
-Field | Type | Description
----|:---:|---
-id | string | Unique identifier of the payout.
-| amount   |   integer | Amount in the smallest currency unit.  Cents for USD. |
-currency | string | Three letter ISO currency code,lowercase.
-| status   |   enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
-metadata | object | Up to 50 key value pairs that you control.
-| created   |   timestamp | Unix epoch seconds when the object was created |
+| Field | Type | Description |
+| --- | :-: | --- |
+| id | string | Unique identifier of the payout. |
+| amount | integer | Amount in the smallest currency unit.  Cents for USD. |
+| currency | string | Three letter ISO currency code,lowercase. |
+| status | enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
+| metadata | object | Up to 50 key value pairs that you control. |
+| created | timestamp | Unix epoch seconds when the object was created |
 
-<ResponseField   name="id"   type="string" >
-The identifier.Store it,you will need it for refunds and disputes.
+<ResponseField name="id" type="string">
+  The identifier.Store it,you will need it for refunds and disputes.
 </ResponseField>
+
 <ResponseField name="status" type="enum">
-- `pending` :  waiting on the customer
--    `succeeded`: funds captured
-- `failed`  : declined by the issuer,see `failure_code`
+  - `pending` :  waiting on the customer
+  - `succeeded`: funds captured
+  - `failed`  : declined by the issuer,see `failure_code`
 </ResponseField>
-
 
 <Warning>
-	Test mode payouts never move real money. Use the card number
-4242 4242 4242 4242 with any future expiry and any CVC to
-simulate a successful payout, or 4000 0000 0000 0002 to
-simulate a decline.
+  Test mode payouts never move real money. Use the card number 4242 4242 4242 4242 with any future expiry and any CVC to simulate a successful payout, or 4000 0000 0000 0002 to simulate a decline.
 </Warning>
 
 **Common failure codes**
 
-1) `card_declined` -- the issuer refused the charge
-1) `insufficient_funds`--   the customer does not have enough balance
-1) `expired_card` --the card expiry date is in the past
-1)   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
-    - retries are safe
-    - do **not** change the amount between retries
-1) `authentication_required` -- 3DS challenge needed
+1. `card_declined` -- the issuer refused the charge
+2. `insufficient_funds`--   the customer does not have enough balance
+3. `expired_card` --the card expiry date is in the past
+4. `processing_error` -- something went wrong on our side,  retry with the same idempotency key
 
-***
+- retries are safe
+- do **not** change the amount between retries
 
+1. `authentication_required` -- 3DS challenge needed
 
-List disputes
-----------------
+---
 
+## List disputes
 
-
-
-<!-- TODO(dispute): rewrite this intro before launch -->
+{/*  TODO(dispute): rewrite this intro before launch  */}
 
 `GET`   `/v1/disputes`
 
-Lists chargebacks and inquiries opened by card networks
-against payments. The request is idempotent when you
-send an Idempotency-Key header, and retries within
-twenty four hours return the original response instead
-of creating a second dispute.
+Lists chargebacks and inquiries opened by card networks against payments. The request is idempotent when you send an Idempotency-Key header, and retries within twenty four hours return the original response instead of creating a second dispute.
 
-
-
-
-
-<ParamField path='amount' type='integer'  required>
-The amount to charge,in the smallest unit of the currency.
-   Must be at least 50 and no more than 99999999.
+<ParamField path="amount" type="integer" required>
+  The amount to charge,in the smallest unit of the currency. Must be at least 50 and no more than 99999999.
 </ParamField>
+
 <ParamField path="currency" type="string" required>
-Three-letter ISO code.    Lowercase.
-</ParamField>
-<ParamField path="customer" type="string">
-   ID of an existing customer. When omitted the dispute is created as a guest dispute
-   and no payment method is saved.
+  Three-letter ISO code.    Lowercase.
 </ParamField>
 
+<ParamField path="customer" type="string">
+  ID of an existing customer. When omitted the dispute is created as a guest dispute and no payment method is saved.
+</ParamField>
 
 ### Request
 
 <CodeGroup>
+
 ```bash cURL
 curl -X GET https://api.ledger.dev/v1/disputes \
      -H "Authorization: Bearer sk_test_123" \
@@ -1022,90 +896,79 @@ const dispute = await ledger.disputes.create({
 });
 console.log(dispute.id)
 ```
+
 ```python Python
 import ledger
 ledger.api_key = "sk_test_123"
 dispute = ledger.Dispute.create(amount=3000, currency="usd")
 print(dispute.id)
 ```
+
 </CodeGroup>
-
-
-
-
 
 ### Response fields
 
-Field | Type | Description
----|:---:|---
-id | string | Unique identifier of the dispute.
-| amount   |   integer | Amount in the smallest currency unit.  Cents for USD. |
-currency | string | Three letter ISO currency code,lowercase.
-| status   |   enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
-metadata | object | Up to 50 key value pairs that you control.
-| created   |   timestamp | Unix epoch seconds when the object was created |
+| Field | Type | Description |
+| --- | :-: | --- |
+| id | string | Unique identifier of the dispute. |
+| amount | integer | Amount in the smallest currency unit.  Cents for USD. |
+| currency | string | Three letter ISO currency code,lowercase. |
+| status | enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
+| metadata | object | Up to 50 key value pairs that you control. |
+| created | timestamp | Unix epoch seconds when the object was created |
 
 <ResponseField name="id" type="string">
-The identifier.Store it,you will need it for refunds and disputes.
-</ResponseField>
-<ResponseField name="status" type="enum">
-+ `pending` :  waiting on the customer
-+    `succeeded`: funds captured
-+ `failed`  : declined by the issuer,see `failure_code`
+  The identifier.Store it,you will need it for refunds and disputes.
 </ResponseField>
 
+<ResponseField name="status" type="enum">
+  - `pending` :  waiting on the customer
+  - `succeeded`: funds captured
+  - `failed`  : declined by the issuer,see `failure_code`
+</ResponseField>
 
 <Tip>
-Test mode disputes never move real money. Use the card
-number 4242 4242 4242 4242 with any future expiry and any
-CVC to simulate a successful dispute, or 4000 0000 0000 0002
-to simulate a decline.
+  Test mode disputes never move real money. Use the card number 4242 4242 4242 4242 with any future expiry and any CVC to simulate a successful dispute, or 4000 0000 0000 0002 to simulate a decline.
 </Tip>
 
 **Common failure codes**
 
 3. `card_declined` -- the issuer refused the charge
-3. `insufficient_funds`--   the customer does not have enough balance
-3. `expired_card` --the card expiry date is in the past
-3.   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
-    + retries are safe
-    + do **not** change the amount between retries
+4. `insufficient_funds`--   the customer does not have enough balance
+5. `expired_card` --the card expiry date is in the past
+6. `processing_error` -- something went wrong on our side,  retry with the same idempotency key
+
+- retries are safe
+- do **not** change the amount between retries
+
 3. `authentication_required` -- 3DS challenge needed
 
-***
+---
 
+## Submit dispute evidence
 
-## Submit dispute evidence ##
-
-
-<!-- TODO(dispute): rewrite this intro before launch -->
+{/*  TODO(dispute): rewrite this intro before launch  */}
 
 `POST`   `/v1/disputes/{id}/evidence`
 
-Uploads evidence files and a written statement for an
-open dispute. The request is idempotent when you send an
-Idempotency-Key header, and retries within twenty four
-hours return the original response instead of creating a
-second dispute.
+Uploads evidence files and a written statement for an open dispute. The request is idempotent when you send an Idempotency-Key header, and retries within twenty four hours return the original response instead of creating a second dispute.
 
-
-
-	<ParamField path='amount' type='integer'  required>
-	The amount to charge,in the smallest unit of the currency.
-	   Must be at least 50 and no more than 99999999.
-	</ParamField>
-<ParamField path="currency" type="string" required>
-Three-letter ISO code.    Lowercase.
+<ParamField path="amount" type="integer" required>
+  The amount to charge,in the smallest unit of the currency. Must be at least 50 and no more than 99999999.
 </ParamField>
-	<ParamField path="customer" type="string">
-	   ID of an existing customer. When omitted the dispute is created as a guest dispute
-	   and no payment method is saved.
-	</ParamField>
 
+<ParamField path="currency" type="string" required>
+  Three-letter ISO code.    Lowercase.
+</ParamField>
+
+<ParamField path="customer" type="string">
+  ID of an existing customer. When omitted the dispute is created as a guest dispute and no payment method is saved.
+</ParamField>
 
 ### Request
 
 <CodeGroup>
+
 ```bash cURL
 curl -X POST https://api.ledger.dev/v1/disputes/pay_9f3k2/evidence \
      -H "Authorization: Bearer sk_test_123" \
@@ -1121,90 +984,79 @@ const dispute = await ledger.disputes.create({
 });
 console.log(dispute.id)
 ```
+
 ```python Python
 import ledger
 ledger.api_key = "sk_test_123"
 dispute = ledger.Dispute.create(amount=3250, currency="usd")
 print(dispute.id)
 ```
+
 </CodeGroup>
-
-
 
 ### Response fields
 
-Field | Type | Description
----|:---:|---
-id | string | Unique identifier of the dispute.
-| amount   |   integer | Amount in the smallest currency unit.  Cents for USD. |
-currency | string | Three letter ISO currency code,lowercase.
-| status   |   enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
-metadata | object | Up to 50 key value pairs that you control.
-| created   |   timestamp | Unix epoch seconds when the object was created |
+| Field | Type | Description |
+| --- | :-: | --- |
+| id | string | Unique identifier of the dispute. |
+| amount | integer | Amount in the smallest currency unit.  Cents for USD. |
+| currency | string | Three letter ISO currency code,lowercase. |
+| status | enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
+| metadata | object | Up to 50 key value pairs that you control. |
+| created | timestamp | Unix epoch seconds when the object was created |
 
-<ResponseField   name="id"   type="string" >
-The identifier.Store it,you will need it for refunds and disputes.
+<ResponseField name="id" type="string">
+  The identifier.Store it,you will need it for refunds and disputes.
 </ResponseField>
+
 <ResponseField name="status" type="enum">
-* `pending` :  waiting on the customer
-*    `succeeded`: funds captured
-* `failed`  : declined by the issuer,see `failure_code`
+  - `pending` :  waiting on the customer
+  - `succeeded`: funds captured
+  - `failed`  : declined by the issuer,see `failure_code`
 </ResponseField>
-
 
 <Note>
-	Test mode disputes never move real money. Use the card
-number 4242 4242 4242 4242 with any future expiry and any
-CVC to simulate a successful dispute, or 4000 0000 0000 0002
-to simulate a decline.
+  Test mode disputes never move real money. Use the card number 4242 4242 4242 4242 with any future expiry and any CVC to simulate a successful dispute, or 4000 0000 0000 0002 to simulate a decline.
 </Note>
 
 **Common failure codes**
 
 1. `card_declined` -- the issuer refused the charge
-1. `insufficient_funds`--   the customer does not have enough balance
-1. `expired_card` --the card expiry date is in the past
-1.   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
-    * retries are safe
-    * do **not** change the amount between retries
+2. `insufficient_funds`--   the customer does not have enough balance
+3. `expired_card` --the card expiry date is in the past
+4. `processing_error` -- something went wrong on our side,  retry with the same idempotency key
+
+- retries are safe
+- do **not** change the amount between retries
+
 1. `authentication_required` -- 3DS challenge needed
 
-***
+---
 
+## Create a checkout session   [#session-10]
 
-##   Create a checkout session   [#session-10]
-
-
-
-<!-- TODO(session): rewrite this intro before launch -->
+{/*  TODO(session): rewrite this intro before launch  */}
 
 `POST`   `/v1/checkout/sessions`
 
-Creates a hosted checkout page that collects payment
-details for you. The request is idempotent when you send
-an Idempotency-Key header, and retries within twenty four
-hours return the original response instead of creating a
-second session.
+Creates a hosted checkout page that collects payment details for you. The request is idempotent when you send an Idempotency-Key header, and retries within twenty four hours return the original response instead of creating a second session.
 
-
-
-
-<ParamField path='amount' type='integer'  required>
-The amount to charge,in the smallest unit of the currency.
-   Must be at least 50 and no more than 99999999.
+<ParamField path="amount" type="integer" required>
+  The amount to charge,in the smallest unit of the currency. Must be at least 50 and no more than 99999999.
 </ParamField>
+
 <ParamField path="currency" type="string" required>
-Three-letter ISO code.    Lowercase.
-</ParamField>
-<ParamField path="customer" type="string">
-   ID of an existing customer. When omitted the session is created as a guest session
-   and no payment method is saved.
+  Three-letter ISO code.    Lowercase.
 </ParamField>
 
+<ParamField path="customer" type="string">
+  ID of an existing customer. When omitted the session is created as a guest session and no payment method is saved.
+</ParamField>
 
 ### Request
 
 <CodeGroup>
+
 ```bash cURL
 curl -X POST https://api.ledger.dev/v1/checkout/sessions \
      -H "Authorization: Bearer sk_test_123" \
@@ -1220,93 +1072,79 @@ const session = await ledger.sessions.create({
 });
 console.log(session.id)
 ```
+
 ```python Python
 import ledger
 ledger.api_key = "sk_test_123"
 session = ledger.Session.create(amount=3500, currency="usd")
 print(session.id)
 ```
+
 </CodeGroup>
-
-
-
 
 ### Response fields
 
-Field | Type | Description
----|:---:|---
-id | string | Unique identifier of the session.
-| amount   |   integer | Amount in the smallest currency unit.  Cents for USD. |
-currency | string | Three letter ISO currency code,lowercase.
-| status   |   enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
-metadata | object | Up to 50 key value pairs that you control.
-| created   |   timestamp | Unix epoch seconds when the object was created |
+| Field | Type | Description |
+| --- | :-: | --- |
+| id | string | Unique identifier of the session. |
+| amount | integer | Amount in the smallest currency unit.  Cents for USD. |
+| currency | string | Three letter ISO currency code,lowercase. |
+| status | enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
+| metadata | object | Up to 50 key value pairs that you control. |
+| created | timestamp | Unix epoch seconds when the object was created |
 
 <ResponseField name="id" type="string">
-The identifier.Store it,you will need it for refunds and disputes.
-</ResponseField>
-<ResponseField name="status" type="enum">
-- `pending` :  waiting on the customer
--    `succeeded`: funds captured
-- `failed`  : declined by the issuer,see `failure_code`
+  The identifier.Store it,you will need it for refunds and disputes.
 </ResponseField>
 
+<ResponseField name="status" type="enum">
+  - `pending` :  waiting on the customer
+  - `succeeded`: funds captured
+  - `failed`  : declined by the issuer,see `failure_code`
+</ResponseField>
 
 <Warning>
-Test mode sessions never move real money. Use the card
-number 4242 4242 4242 4242 with any future expiry and any
-CVC to simulate a successful session, or 4000 0000 0000 0002
-to simulate a decline.
+  Test mode sessions never move real money. Use the card number 4242 4242 4242 4242 with any future expiry and any CVC to simulate a successful session, or 4000 0000 0000 0002 to simulate a decline.
 </Warning>
 
 **Common failure codes**
 
-1) `card_declined` -- the issuer refused the charge
-1) `insufficient_funds`--   the customer does not have enough balance
-1) `expired_card` --the card expiry date is in the past
-1)   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
-    - retries are safe
-    - do **not** change the amount between retries
-1) `authentication_required` -- 3DS challenge needed
+1. `card_declined` -- the issuer refused the charge
+2. `insufficient_funds`--   the customer does not have enough balance
+3. `expired_card` --the card expiry date is in the past
+4. `processing_error` -- something went wrong on our side,  retry with the same idempotency key
 
-***
+- retries are safe
+- do **not** change the amount between retries
 
+1. `authentication_required` -- 3DS challenge needed
+
+---
 
 ## Verify a webhook
 
-
-
-
-<!-- TODO(webhook): rewrite this intro before launch -->
+{/*  TODO(webhook): rewrite this intro before launch  */}
 
 `POST`   `/v1/webhooks/verify`
 
-Validates a webhook signature header against your endpoint
-secret. The request is idempotent when you send an
-Idempotency-Key header, and retries within twenty four
-hours return the original response instead of creating a
-second webhook.
+Validates a webhook signature header against your endpoint secret. The request is idempotent when you send an Idempotency-Key header, and retries within twenty four hours return the original response instead of creating a second webhook.
 
-
-
-
-
-	<ParamField path='amount' type='integer'  required>
-	The amount to charge,in the smallest unit of the currency.
-	   Must be at least 50 and no more than 99999999.
-	</ParamField>
-<ParamField path="currency" type="string" required>
-Three-letter ISO code.    Lowercase.
+<ParamField path="amount" type="integer" required>
+  The amount to charge,in the smallest unit of the currency. Must be at least 50 and no more than 99999999.
 </ParamField>
-	<ParamField path="customer" type="string">
-	   ID of an existing customer. When omitted the webhook is created as a guest webhook
-	   and no payment method is saved.
-	</ParamField>
 
+<ParamField path="currency" type="string" required>
+  Three-letter ISO code.    Lowercase.
+</ParamField>
+
+<ParamField path="customer" type="string">
+  ID of an existing customer. When omitted the webhook is created as a guest webhook and no payment method is saved.
+</ParamField>
 
 ### Request
 
 <CodeGroup>
+
 ```bash cURL
 curl -X POST https://api.ledger.dev/v1/webhooks/verify \
      -H "Authorization: Bearer sk_test_123" \
@@ -1322,89 +1160,89 @@ const webhook = await ledger.webhooks.create({
 });
 console.log(webhook.id)
 ```
+
 ```python Python
 import ledger
 ledger.api_key = "sk_test_123"
 webhook = ledger.Webhook.create(amount=3750, currency="usd")
 print(webhook.id)
 ```
+
 </CodeGroup>
-
-
-
-
 
 ### Response fields
 
-Field | Type | Description
----|:---:|---
-id | string | Unique identifier of the webhook.
-| amount   |   integer | Amount in the smallest currency unit.  Cents for USD. |
-currency | string | Three letter ISO currency code,lowercase.
-| status   |   enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
-metadata | object | Up to 50 key value pairs that you control.
-| created   |   timestamp | Unix epoch seconds when the object was created |
+| Field | Type | Description |
+| --- | :-: | --- |
+| id | string | Unique identifier of the webhook. |
+| amount | integer | Amount in the smallest currency unit.  Cents for USD. |
+| currency | string | Three letter ISO currency code,lowercase. |
+| status | enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
+| metadata | object | Up to 50 key value pairs that you control. |
+| created | timestamp | Unix epoch seconds when the object was created |
 
-<ResponseField   name="id"   type="string" >
-The identifier.Store it,you will need it for refunds and disputes.
+<ResponseField name="id" type="string">
+  The identifier.Store it,you will need it for refunds and disputes.
 </ResponseField>
+
 <ResponseField name="status" type="enum">
-+ `pending` :  waiting on the customer
-+    `succeeded`: funds captured
-+ `failed`  : declined by the issuer,see `failure_code`
+  - `pending` :  waiting on the customer
+  - `succeeded`: funds captured
+  - `failed`  : declined by the issuer,see `failure_code`
 </ResponseField>
-
 
 <Tip>
-	Test mode webhooks never move real money. Use the card
-number 4242 4242 4242 4242 with any future expiry and any
-CVC to simulate a successful webhook, or 4000 0000 0000 0002
-to simulate a decline.
+  Test mode webhooks never move real money. Use the card number 4242 4242 4242 4242 with any future expiry and any CVC to simulate a successful webhook, or 4000 0000 0000 0002 to simulate a decline.
 </Tip>
 
 **Common failure codes**
 
 3. `card_declined` -- the issuer refused the charge
-3. `insufficient_funds`--   the customer does not have enough balance
-3. `expired_card` --the card expiry date is in the past
-3.   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
-    + retries are safe
-    + do **not** change the amount between retries
+4. `insufficient_funds`--   the customer does not have enough balance
+5. `expired_card` --the card expiry date is in the past
+6. `processing_error` -- something went wrong on our side,  retry with the same idempotency key
+
+- retries are safe
+- do **not** change the amount between retries
+
 3. `authentication_required` -- 3DS challenge needed
 
-***
+---
 
 ## Webhooks
 
-Ledger sends a `POST` to your endpoint whenever something interesting happens.   Respond
-with any `2xx` within 10 seconds or we retry with exponential backoff for  __3 days__.
+Ledger sends a `POST` to your endpoint whenever something interesting happens.   Respond with any `2xx` within 10 seconds or we retry with exponential backoff for  **3 days**.
 
 <AccordionGroup>
-<Accordion title="payment.succeeded">
-Fired once funds are captured.   The payload contains the full payment object.
-</Accordion>
-<Accordion title="payment.failed">
-Fired when the issuer declines.`failure_code` explains why.
-</Accordion>
-<Accordion title="refund.created">
-   Fired when a refund is created,before the money reaches the customer.
-</Accordion>
-<Accordion title="dispute.opened">
-Fired when a card network opens a chargeback.   You have 7 days to submit evidence.
-</Accordion>
-<Accordion title="payout.paid">
-Fired when a payout lands in the merchant bank account.
-</Accordion>
+  <Accordion title="payment.succeeded">
+    Fired once funds are captured.   The payload contains the full payment object.
+  </Accordion>
+
+  <Accordion title="payment.failed">
+    Fired when the issuer declines.`failure_code` explains why.
+  </Accordion>
+
+  <Accordion title="refund.created">
+    Fired when a refund is created,before the money reaches the customer.
+  </Accordion>
+
+  <Accordion title="dispute.opened">
+    Fired when a card network opens a chargeback.   You have 7 days to submit evidence.
+  </Accordion>
+
+  <Accordion title="payout.paid">
+    Fired when a payout lands in the merchant bank account.
+  </Accordion>
 </AccordionGroup>
 
 ### Verifying signatures
 
-1) read the `Ledger-Signature` header
-2) split it on `,` into `t=` and `v1=` parts
-3) compute `HMAC_SHA256(secret, t + "." + raw_body)`
-4) compare with `v1` using a constant time comparison
-   * reject if the timestamp is older than 5 minutes
-   * reject if the signatures differ
+1. read the `Ledger-Signature` header
+2. split it on `,` into `t=` and `v1=` parts
+3. compute `HMAC_SHA256(secret, t + "." + raw_body)`
+4. compare with `v1` using a constant time comparison
+   - reject if the timestamp is older than 5 minutes
+   - reject if the signatures differ
 
 ```javascript
 const expected = crypto.createHmac('sha256', secret).update(`${t}.${body}`).digest('hex');
@@ -1412,7 +1250,7 @@ if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1))) throw new E
 ```
 
 <Frame caption="Webhook delivery attempts in the dashboard">
-![Webhook attempts](/images/webhooks/attempts.png)
+  ![Webhook attempts](/images/webhooks/attempts.png)
 </Frame>
 
 ## Rate limits
@@ -1421,49 +1259,52 @@ if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1))) throw new E
 - [ ] burst allowance of 500 requests (coming soon)
 - [x] `429` responses include a `Retry-After` header
 
-When you get a `429`,  back off.  Do not retry in a tight loop; you will only make it worse
-and we will eventually block the key for an hour.
+When you get a `429`,  back off.  Do not retry in a tight loop; you will only make it worse and we will eventually block the key for an hour.
 
 ## Changelog
 
 <Update label="2026-08-14" description="Partial captures">
-`POST /v1/payments/{id}/capture` now accepts an `amount` smaller than the authorized amount.
-The remainder is released back to the customer immediately.
+  `POST /v1/payments/{id}/capture` now accepts an `amount` smaller than the authorized amount. The remainder is released back to the customer immediately.
 </Update>
+
 <Update label="2026-07-02" description="Restricted keys">
-Keys that start with `rk_` can be scoped to a subset of endpoints.
-    * read only keys
-    * refund only keys
-    * keys that can not create payouts
+  Keys that start with `rk_` can be scoped to a subset of endpoints.
+
+  - read only keys
+  - refund only keys
+  - keys that can not create payouts
 </Update>
+
 <Update label="2026-05-19" description="Disputes API">
-The disputes endpoints left beta.   Evidence uploads are limited to 5MB per file.
+  The disputes endpoints left beta.   Evidence uploads are limited to 5MB per file.
 </Update>
 
 ## FAQ
 
 <AccordionGroup>
-<Accordion title="Do you store card numbers?">
-No.Cards are tokenized by the browser SDK before they reach your server or ours.
-</Accordion>
-<Accordion title="Which currencies are supported?">
-135 currencies.   Settlement currency depends on the country of the merchant account.
-</Accordion>
-<Accordion title="Can I use the API from the browser?">
-Only with a publishable key (`pk_`),which can create checkout sessions and nothing else.
-</Accordion>
+  <Accordion title="Do you store card numbers?">
+    No.Cards are tokenized by the browser SDK before they reach your server or ours.
+  </Accordion>
+
+  <Accordion title="Which currencies are supported?">
+    135 currencies.   Settlement currency depends on the country of the merchant account.
+  </Accordion>
+
+  <Accordion title="Can I use the API from the browser?">
+    Only with a publishable key (`pk_`),which can create checkout sessions and nothing else.
+  </Accordion>
 </AccordionGroup>
 
 ## Glossary
 
-Term | Definition
---- | ---
-Authorization | A hold on funds that has not been captured yet
-Capture | Turning an authorization into an actual charge
-Settlement | Money reaching your bank account
-Chargeback | A dispute raised by the cardholder through their bank
-Idempotency | Doing the same thing twice has the same effect as doing it once
+| Term | Definition |
+| --- | --- |
+| Authorization | A hold on funds that has not been captured yet |
+| Capture | Turning an authorization into an actual charge |
+| Settlement | Money reaching your bank account |
+| Chargeback | A dispute raised by the cardholder through their bank |
+| Idempotency | Doing the same thing twice has the same effect as doing it once |
 
-___
+---
 
-*Last reviewed by the payments team.*   Questions?   Email `api@ledger.dev` .
+_Last reviewed by the payments team._   Questions?   Email `api@ledger.dev` .
