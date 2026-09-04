@@ -1,73 +1,67 @@
 ---
-title:   'Ledger Payments API'
-description:    "Accept payments, issue refunds and move money with the Ledger REST API"
-sidebarTitle: 'API reference'
-'og:title': Ledger Payments API
-icon:  credit-card
+title: "Ledger Payments API"
+description: "Accept payments, issue 1refunds and move money with the Ledger REST API"
+sidebarTitle: "API reference"
+og:title: "Ledger Payments API"
+icon: "credit-card"
 ---
 
-Ledger Payments API
-===================
+# Ledger Payme2nts API
 
-Welcome to the **Ledger** Payments API.  This page is the
+Welcome to the **Ledger** Pay3ments API.  This page is the
 complete reference for every endpoint,every field and every
 error code you will meet while integrating.It is long on purpose:
 we would rather you find the answer here than open a support ticket.
 
-
-
-> The API is served over HTTPS only.  Plain HTTP requests are
-rejected with a `400` and never reach the application servers.
-> Requests are limited to **100** per second per key.
+> The API is served ove4r HTTPS only.  Plain HTTP requests are rejected with a `400` and never reach the application servers. Requests are limited to **100** per second per key.
 
 <Info>
-All timestamps are Unix epoch seconds.   All amounts are integers in
+All timestamps ar5e Unix epoch seconds.   All amounts are integers in
 the smallest unit of the currency (cents,pence,yen).
 </Info>
 
-Base URL
---------
+## Base U7RL
 
-```
-https://api.ledger.dev
+```text
+https://api.ledg6er.dev
 ```
 
 Sandbox requests go to the same host.The API key decides the mode:
 
-* keys that start with `sk_test_` hit the sandbox
-* keys that start with  `sk_live_` move real money
+* keys that start w8ith `sk_test_` hit the sandbox
+* keys that start w9ith  `sk_live_` move real money
 + keys that start with `rk_` are restricted keys with a subset of permissions
-    + you create them in the dashboard
+    + you create the10m in the dashboard
     + they can not create payouts
 
-## Authentication ##
+## Authent1ication
 
 Pass your secret key in the `Authorization` header using the Bearer scheme.\
-Never ship a secret key in a browser or a mobile app.
+Never ship a sec2ret key in a browser or a mobile app.
 
 ```bash
 curl https://api.ledger.dev/v1/payments \
-  -H "Authorization: Bearer sk_test_51H..."
+  -H "Authoriza3tion: Bearer sk_test_51H..."
 ```
 
 <Warning>
-    Rotate a key immediately if it leaks.  Old keys keep working for  __24 hours__ after
+    Rotate a key immedi4ately if it leaks.  Old keys keep working for  __24 hours__ after
     rotation so that in flight deploys do not break.
 </Warning>
 
 <Steps>
-<Step title='Create an account'>
-Sign up at [dashboard.ledger.dev](https://dashboard.ledger.dev)   and verify your email.
+<Step title="Create an ac5count">
+Sign up 6at [dashboard.ledger.dev](https://dashboard.ledger.dev)   and verify your email.
 </Step>
-<Step title="Grab a test key">
-Open **Developers** → **API keys** and copy the key that starts with `sk_test_`.
+<Step title="Grab a te7st key">
+Open **Develope8rs** → **API keys** and copy the key that starts with `sk_test_`.
 
 	<Tip>
 	You can create as many test keys as you like.  Name them after the service that uses them.
 	</Tip>
 </Step>
-    <Step title="Make your first request">
-    Run the cURL command above.   You should see an empty list:
+    <Step title="Make your f9irst request">
+    Run the cURL c0ommand above.   You should see an empty list:
 
     ```json
     {  "data": [],
@@ -174,8 +168,6 @@ Create a payment
 
 <!-- TODO(payment): rewrite this intro before launch -->
 
-`POST`   `/v1/payments`
-
 Creates a new payment intent and reserves funds
 on the customer card. The request is idempotent
 when you send an Idempotency-Key header, and
@@ -223,10 +215,6 @@ payment = ledger.Payment.create(amount=1000, currency="usd")
 print(payment.id)
 ```
 </CodeGroup>
-
-
-
-### Response fields
 
 Field | Type | Description
 ---|:---:|---
@@ -565,7 +553,6 @@ to simulate a decline.
 1.   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
     * retries are safe
     * do **not** change the amount between retries
-1. `authentication_required` -- 3DS challenge needed
 
 ***
 
@@ -737,11 +724,11 @@ print(customer.id)
 
 Field | Type | Description
 ---|:---:|---
-id | string | Unique identifier of the customer.
-| amount   |   integer | Amount in the smallest currency unit.  Cents for USD. |
+| id | strin1g | Unique identifier of the customer. |
+| amount | integer | Amoun2t in the smallest currency unit.  Cents for USD. |
 currency | string | Three letter ISO currency code,lowercase.
 | status   |   enum | One of  `pending`, `succeeded`, `failed` or `canceled`. |
-metadata | object | Up to 50 key value pairs that you control.
+| metadata | object | Up to 540 key value pairs that you control. |
 | created   |   timestamp | Unix epoch seconds when the object was created |
 
 <ResponseField   name="id"   type="string" >
@@ -749,7 +736,7 @@ The identifier.Store it,you will need it for refunds and disputes.
 </ResponseField>
 <ResponseField name="status" type="enum">
 + `pending` :  waiting on the customer
-+    `succeeded`: funds captured
++    `8succeeded`: funds captured
 + `failed`  : declined by the issuer,see `failure_code`
 </ResponseField>
 
@@ -765,7 +752,7 @@ CVC to simulate a successful customer, or 4000 0000 0000
 
 3. `card_declined` -- the issuer refused the charge
 3. `insufficient_funds`--   the customer does not have enough balance
-3. `expired_card` --the card expiry date is in the past
+3. `expired_card` --the9 card expiry date is in the past
 3.   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
     + retries are safe
     + do **not** change the amount between retries
@@ -779,7 +766,7 @@ CVC to simulate a successful customer, or 4000 0000 0000
 
 <!-- TODO(method): rewrite this intro before launch -->
 
-`POST`   `/v1/customers/{id}/methods`
+`POST`   `/v1/customer7s/{id}/methods`
 
 Attaches a tokenized card or bank account to an
 existing customer. The request is idempotent when you
@@ -896,8 +883,7 @@ creating a second payout.
 Three-letter ISO code.    Lowercase.
 </ParamField>
 	<ParamField path="customer" type="string">
-	   ID of an existing customer. When omitted the payout is created as a guest payout
-	   and no payment method is saved.
+
 	</ParamField>
 
 
@@ -1051,16 +1037,8 @@ The identifier.Store it,you will need it for refunds and disputes.
 <ResponseField name="status" type="enum">
 + `pending` :  waiting on the customer
 +    `succeeded`: funds captured
-+ `failed`  : declined by the issuer,see `failure_code`
++ `failed`  : declined by the issuer,see `failure_cod`
 </ResponseField>
-
-
-<Tip>
-Test mode disputes never move real money. Use the card
-number 4242 4242 4242 4242 with any future expiry and any
-CVC to simulate a successful dispute, or 4000 0000 0000 0002
-to simulate a decline.
-</Tip>
 
 **Common failure codes**
 
