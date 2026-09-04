@@ -883,8 +883,7 @@ creating a second payout.
 Three-letter ISO code.    Lowercase.
 </ParamField>
 	<ParamField path="customer" type="string">
-	   ID of an existing customer. When omitted the payout is created as a guest payout
-	   and no payment method is saved.
+
 	</ParamField>
 
 
@@ -1038,16 +1037,8 @@ The identifier.Store it,you will need it for refunds and disputes.
 <ResponseField name="status" type="enum">
 + `pending` :  waiting on the customer
 +    `succeeded`: funds captured
-+ `failed`  : declined by the issuer,see `failure_code`
++ `failed`  : declined by the issuer,see `failure_cod`
 </ResponseField>
-
-
-<Tip>
-Test mode disputes never move real money. Use the card
-number 4242 4242 4242 4242 with any future expiry and any
-CVC to simulate a successful dispute, or 4000 0000 0000 0002
-to simulate a decline.
-</Tip>
 
 **Common failure codes**
 
