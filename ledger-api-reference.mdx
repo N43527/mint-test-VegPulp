@@ -168,8 +168,6 @@ Create a payment
 
 <!-- TODO(payment): rewrite this intro before launch -->
 
-`POST`   `/v1/payments`
-
 Creates a new payment intent and reserves funds
 on the customer card. The request is idempotent
 when you send an Idempotency-Key header, and
@@ -217,10 +215,6 @@ payment = ledger.Payment.create(amount=1000, currency="usd")
 print(payment.id)
 ```
 </CodeGroup>
-
-
-
-### Response fields
 
 Field | Type | Description
 ---|:---:|---
@@ -559,7 +553,6 @@ to simulate a decline.
 1.   `processing_error` -- something went wrong on our side,  retry with the same idempotency key
     * retries are safe
     * do **not** change the amount between retries
-1. `authentication_required` -- 3DS challenge needed
 
 ***
 
