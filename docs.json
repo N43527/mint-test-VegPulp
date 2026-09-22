@@ -9,24 +9,54 @@
   },
   "favicon": "/favicon.svg",
   "navigation": {
-    "pages": [
+    "languages": [
       {
-        "group": "Getting Started",
+        "language": "en",
+        "default": true,
         "pages": [
-          "index",
-          "quickstart",
-          "poor-format",
-          "ledger-api-reference"
+          {
+            "group": "Getting Started",
+            "pages": [
+              "index",
+              "quickstart",
+              "poor-format",
+              "ledger-api-reference"
+            ]
+          },
+          {
+            "group": "Phantom Test",
+            "openapi": "api-reference/openapi.json",
+            "pages": [
+              "GET /orgs",
+              "POST /orgs",
+              "GET /orgs/{id}",
+              "DELETE /orgs/{id}"
+            ]
+          }
         ]
       },
       {
-        "group": "Phantom Test",
-        "openapi": "api-reference/openapi.json",
+        "language": "es",
         "pages": [
-          "GET /orgs", 
-          "POST /orgs", 
-          "GET /orgs/{id}", 
-          "DELETE /orgs/{id}"
+          {
+            "group": "Empezar",
+            "pages": [
+              "es/index",
+              "es/quickstart",
+              "es/poor-format",
+              "es/ledger-api-reference"
+            ]
+          },
+          {
+            "group": "Prueba fantasma",
+            "openapi": "api-reference/openapi.json",
+            "pages": [
+              "es/GET /orgs",
+              "es/POST /orgs",
+              "es/GET /orgs/{id}",
+              "es/DELETE /orgs/{id}"
+            ]
+          }
         ]
       }
     ],

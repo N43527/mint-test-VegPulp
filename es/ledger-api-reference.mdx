@@ -1,0 +1,1471 @@
+---
+title:   'API de pagos de Ledger'
+description:    "Acepta pagos, emite reembolsos y mueve dinero con la API REST de Ledger"
+sidebarTitle: 'Referencia de API'
+'og:title': Ledger Payments API
+icon:  credit-card
+---
+
+API de pagos de Ledger
+======================
+
+Te damos la bienvenida a la API de pagos de **Ledger**. Esta página es la
+referencia completa para cada endpoint, cada campo y cada
+código de error con el que te encontrarás durante la integración. Es larga a propósito:
+preferimos que encuentres la respuesta aquí antes de que abras un ticket de soporte.
+
+
+
+> La API se sirve solo a través de HTTPS. Las solicitudes HTTP en texto plano
+se rechazan con un `400` y nunca llegan a los servidores de la aplicación.
+> Las solicitudes están limitadas a **100** por segundo por clave.
+
+<Info>
+Todas las marcas de tiempo están en segundos de la época Unix. Todos los importes son enteros en
+la unidad más pequeña de la moneda (centavos, peniques, yenes).
+</Info>
+
+URL base
+--------
+
+```
+https://api.ledger.dev
+```
+
+Las solicitudes al sandbox van al mismo host. La clave de API decide el modo:
+
+* las claves que comienzan con `sk_test_` van al sandbox
+* las claves que comienzan con `sk_live_` mueven dinero real
++ las claves que comienzan con `rk_` son claves restringidas con un subconjunto de permisos
+    + las creas en el dashboard
+    + no pueden crear pagos salientes
+
+## Autenticación ##
+
+Pasa tu clave secreta en el encabezado `Authorization` usando el esquema Bearer.\
+Nunca envíes una clave secreta en un navegador o en una aplicación móvil.
+
+```bash
+curl https://api.ledger.dev/v1/payments \
+  -H "Authorization: Bearer sk_test_51H..."
+```
+
+<Warning>
+    Rota una clave de inmediato si se filtra. Las claves antiguas siguen funcionando durante  __24 horas__ después
+    de la rotación para que los despliegues en curso no se rompan.
+</Warning>
+
+<Steps>
+<Step title='Crear una cuenta'>
+Regístrate en [dashboard.ledger.dev](https://dashboard.ledger.dev)   y verifica tu correo electrónico.
+</Step>
+<Step title="Obtener una clave de prueba">
+Abre **Developers** → **API keys** y copia la clave que comienza con `sk_test_`.
+
+	<Tip>
+	Puedes crear tantas claves de prueba como quieras. Nómbralas según el servicio que las usa.
+	</Tip>
+</Step>
+    <Step title="Hacer tu primera solicitud">
+    Ejecuta el comando cURL anterior. Deberías ver una lista vacía:
+
+    ```json
+    {  "data": [],
+       "has_more": false }
+    ```
+    </Step>
+<Step title="Pasar a producción">
+Reemplaza la clave de prueba con una clave en vivo y activa el interruptor *Live mode* en el dashboard.
+</Step>
+</Steps>
+
+
+
+
+Idempotencia
+------------
+
+Cada `POST` acepta un encabezado `Idempotency-Key`. Almacenamos la primera respuesta durante
+24 horas y la reproducimos para cualquier reintento que lleve la misma clave.
+
+1. genera un UUID v4 por operación lógica
+1. envíalo en el primer intento
+1. reutilízalo en **cada** reintento de esa operación
+1. nunca lo reutilices para una operación diferente
+
+| Escenario | Qué sucede |
+|--|--|
+| misma clave, mismo cuerpo | se reproduce la respuesta original |
+|misma clave, cuerpo diferente|`409 idempotency_key_reused`|
+| clave con más de 24 h | se trata como una nueva solicitud |
+
+<AccordionGroup>
+<Accordion title="¿Por qué 24 horas?">
+Es lo suficientemente largo para sobrevivir a un incidente y lo suficientemente corto para que las claves no se acumulen.
+</Accordion>
+   <Accordion title='¿Puedo elegir mi propio formato de clave?'>
+   Sí. Cualquier cosa de hasta 255 caracteres. Los UUID son solo una convención.
+   </Accordion>
+<Accordion title="¿Las solicitudes GET necesitan una clave?">
+No. Las lecturas son idempotentes por naturaleza y el encabezado se ignora.
+</Accordion>
+</AccordionGroup>
+
+<Tabs>
+<Tab title="Node">
+```javascript
+const payment = await ledger.payments.create(
+  { amount: 1999, currency: 'usd' },
+  { idempotencyKey: crypto.randomUUID() }
+);
+```
+</Tab>
+<Tab title="Python">
+```python
+payment = ledger.Payment.create(
+    amount=1999, currency="usd",
+    idempotency_key=str(uuid.uuid4()))
+```
+</Tab>
+    <Tab title="Ruby">
+    ```ruby
+    payment = Ledger::Payment.create({amount: 1999, currency: 'usd'}, idempotency_key: SecureRandom.uuid)
+    ```
+    </Tab>
+</Tabs>
+
+- - -
+
+## Errores
+
+Ledger usa códigos de estado HTTP convencionales. Los códigos en el rango `2xx` significan éxito, `4xx` significa
+que enviaste algo que no pudimos aceptar y `5xx` significa que rompimos algo.
+
+Estado | Significado
+---|---
+200 | Todo funcionó
+201|Objeto creado
+400 | La solicitud estaba mal formada, consulta `message`
+401 | Sin clave de API válida
+402 |  La solicitud estaba bien pero el pago falló
+404 | El objeto no existe o pertenece a otra cuenta
+409 | Conflicto de idempotencia
+429 | Demasiadas solicitudes, reduce el ritmo
+500 | Culpa nuestra. Reintenta con retroceso
+
+El cuerpo del error siempre tiene la misma forma:
+
+```JSON
+{
+  "error": {
+    "type":    "card_error",
+    "code": "card_declined",
+    "message": "Your card was declined.",
+    "param": "source"
+  }
+}
+```
+
+_Consejo:_ el campo `param` te indica qué campo de la solicitud causó el problema, cuando lo hay.
+
+Crear un pago
+-------------------
+
+
+<!-- TODO(payment): rewrite this intro before launch -->
+
+`POST`   `/v1/payments`
+
+Crea una nueva intención de pago y reserva fondos
+en la tarjeta del cliente. La solicitud es idempotente
+cuando envías un encabezado Idempotency-Key, y
+los reintentos dentro de veinticuatro horas devuelven la
+respuesta original en lugar de crear un segundo
+pago.
+
+
+
+<ParamField path='amount' type='integer'  required>
+El importe a cobrar, en la unidad más pequeña de la moneda.
+   Debe ser al menos 50 y no más de 99999999.
+</ParamField>
+<ParamField path="currency" type="string" required>
+Código ISO de tres letras. Minúsculas.
+</ParamField>
+<ParamField path="customer" type="string">
+   ID de un cliente existente. Cuando se omite, el pago se crea como un pago de invitado
+   y no se guarda ningún método de pago.
+</ParamField>
+
+
+### Solicitud
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.ledger.dev/v1/payments \
+     -H "Authorization: Bearer sk_test_123" \
+     -H 'Content-Type: application/json' \
+     -d '{"amount": 1000, "currency": "usd"}'
+```
+
+```javascript Node
+const ledger = require('ledger')('sk_test_123');
+const payment = await ledger.payments.create({
+    amount: 1000,
+    currency: 'usd',
+});
+console.log(payment.id)
+```
+```python Python
+import ledger
+ledger.api_key = "sk_test_123"
+payment = ledger.Payment.create(amount=1000, currency="usd")
+print(payment.id)
+```
+</CodeGroup>
+
+
+
+### Campos de respuesta
+
+Campo | Tipo | Descripción
+---|:---:|---
+id | string | Identificador único del pago.
+| amount   |   integer | Importe en la unidad de moneda más pequeña. Centavos para USD. |
+currency | string | Código ISO de moneda de tres letras, en minúsculas.
+| status   |   enum | Uno de  `pending`, `succeeded`, `failed` o `canceled`. |
+metadata | object | Hasta 50 pares clave-valor que tú controlas.
+| created   |   timestamp | Segundos de la época Unix cuando se creó el objeto |
+
+<ResponseField name="id" type="string">
+El identificador. Guárdalo, lo necesitarás para reembolsos y disputas.
+</ResponseField>
+<ResponseField name="status" type="enum">
+* `pending` :  esperando al cliente
+*    `succeeded`: fondos capturados
+* `failed`  : rechazado por el emisor, consulta `failure_code`
+</ResponseField>
+
+
+<Note>
+Los pagos en modo de prueba nunca mueven dinero real. Usa el número
+de tarjeta 4242 4242 4242 4242 con cualquier fecha de vencimiento futura y cualquier
+CVC para simular un pago exitoso, o 4000 0000 0000 0002
+para simular un rechazo.
+</Note>
+
+**Códigos de fallo comunes**
+
+1. `card_declined` -- el emisor rechazó el cargo
+1. `insufficient_funds`--   el cliente no tiene saldo suficiente
+1. `expired_card` --la fecha de vencimiento de la tarjeta está en el pasado
+1.   `processing_error` -- algo salió mal por nuestra parte, reintenta con la misma clave de idempotencia
+    * los reintentos son seguros
+    * **no** cambies el importe entre reintentos
+1. `authentication_required` -- se necesita un desafío 3DS
+
+***
+
+
+## Recuperar un pago ##
+
+
+
+<!-- TODO(payment): rewrite this intro before launch -->
+
+`GET`   `/v1/payments/{id}`
+
+Obtiene un solo pago por su identificador,
+incluyendo el estado más reciente. La solicitud es
+idempotente cuando envías un encabezado Idempotency-Key,
+y los reintentos dentro de veinticuatro horas
+devuelven la respuesta original en lugar de crear
+un segundo pago.
+
+
+
+
+	<ParamField path='amount' type='integer'  required>
+	El importe a cobrar, en la unidad más pequeña de la moneda.
+	   Debe ser al menos 50 y no más de 99999999.
+	</ParamField>
+<ParamField path="currency" type="string" required>
+Código ISO de tres letras. Minúsculas.
+</ParamField>
+	<ParamField path="customer" type="string">
+	   ID de un cliente existente. Cuando se omite, el pago se crea como un pago de invitado
+	   y no se guarda ningún método de pago.
+	</ParamField>
+
+
+### Solicitud
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://api.ledger.dev/v1/payments/pay_9f3k2 \
+     -H "Authorization: Bearer sk_test_123" \
+     -H 'Content-Type: application/json' \
+     -d '{"amount": 1250, "currency": "usd"}'
+```
+
+```javascript Node
+const ledger = require('ledger')('sk_test_123');
+const payment = await ledger.payments.create({
+    amount: 1250,
+    currency: 'usd',
+});
+console.log(payment.id)
+```
+```python Python
+import ledger
+ledger.api_key = "sk_test_123"
+payment = ledger.Payment.create(amount=1250, currency="usd")
+print(payment.id)
+```
+</CodeGroup>
+
+
+
+
+### Campos de respuesta
+
+Campo | Tipo | Descripción
+---|:---:|---
+id | string | Identificador único del pago.
+| amount   |   integer | Importe en la unidad de moneda más pequeña. Centavos para USD. |
+currency | string | Código ISO de moneda de tres letras, en minúsculas.
+| status   |   enum | Uno de  `pending`, `succeeded`, `failed` o `canceled`. |
+metadata | object | Hasta 50 pares clave-valor que tú controlas.
+| created   |   timestamp | Segundos de la época Unix cuando se creó el objeto |
+
+<ResponseField   name="id"   type="string" >
+El identificador. Guárdalo, lo necesitarás para reembolsos y disputas.
+</ResponseField>
+<ResponseField name="status" type="enum">
+- `pending` :  esperando al cliente
+-    `succeeded`: fondos capturados
+- `failed`  : rechazado por el emisor, consulta `failure_code`
+</ResponseField>
+
+
+<Warning>
+	Los pagos en modo de prueba nunca mueven dinero real. Usa el número
+de tarjeta 4242 4242 4242 4242 con cualquier fecha de vencimiento futura y cualquier
+CVC para simular un pago exitoso, o 4000 0000 0000 0002
+para simular un rechazo.
+</Warning>
+
+**Códigos de fallo comunes**
+
+1) `card_declined` -- el emisor rechazó el cargo
+1) `insufficient_funds`--   el cliente no tiene saldo suficiente
+1) `expired_card` --la fecha de vencimiento de la tarjeta está en el pasado
+1)   `processing_error` -- algo salió mal por nuestra parte, reintenta con la misma clave de idempotencia
+    - los reintentos son seguros
+    - **no** cambies el importe entre reintentos
+1) `authentication_required` -- se necesita un desafío 3DS
+
+***
+
+
+##   Listar pagos   [#payment-2]
+
+
+
+
+<!-- TODO(payment): rewrite this intro before launch -->
+
+`GET`   `/v1/payments`
+
+Devuelve los pagos en orden cronológico inverso
+con paginación por cursor. La solicitud es idempotente
+cuando envías un encabezado Idempotency-Key, y
+los reintentos dentro de veinticuatro horas devuelven la
+respuesta original en lugar de crear un segundo
+pago.
+
+
+
+
+
+<ParamField path='amount' type='integer'  required>
+El importe a cobrar, en la unidad más pequeña de la moneda.
+   Debe ser al menos 50 y no más de 99999999.
+</ParamField>
+<ParamField path="currency" type="string" required>
+Código ISO de tres letras. Minúsculas.
+</ParamField>
+<ParamField path="customer" type="string">
+   ID de un cliente existente. Cuando se omite, el pago se crea como un pago de invitado
+   y no se guarda ningún método de pago.
+</ParamField>
+
+
+### Solicitud
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://api.ledger.dev/v1/payments \
+     -H "Authorization: Bearer sk_test_123" \
+     -H 'Content-Type: application/json' \
+     -d '{"amount": 1500, "currency": "usd"}'
+```
+
+```javascript Node
+const ledger = require('ledger')('sk_test_123');
+const payment = await ledger.payments.create({
+    amount: 1500,
+    currency: 'usd',
+});
+console.log(payment.id)
+```
+```python Python
+import ledger
+ledger.api_key = "sk_test_123"
+payment = ledger.Payment.create(amount=1500, currency="usd")
+print(payment.id)
+```
+</CodeGroup>
+
+
+
+
+
+### Campos de respuesta
+
+Campo | Tipo | Descripción
+---|:---:|---
+id | string | Identificador único del pago.
+| amount   |   integer | Importe en la unidad de moneda más pequeña. Centavos para USD. |
+currency | string | Código ISO de moneda de tres letras, en minúsculas.
+| status   |   enum | Uno de  `pending`, `succeeded`, `failed` o `canceled`. |
+metadata | object | Hasta 50 pares clave-valor que tú controlas.
+| created   |   timestamp | Segundos de la época Unix cuando se creó el objeto |
+
+<ResponseField name="id" type="string">
+El identificador. Guárdalo, lo necesitarás para reembolsos y disputas.
+</ResponseField>
+<ResponseField name="status" type="enum">
++ `pending` :  esperando al cliente
++    `succeeded`: fondos capturados
++ `failed`  : rechazado por el emisor, consulta `failure_code`
+</ResponseField>
+
+
+<Tip>
+Los pagos en modo de prueba nunca mueven dinero real. Usa el número
+de tarjeta 4242 4242 4242 4242 con cualquier fecha de vencimiento futura y cualquier
+CVC para simular un pago exitoso, o 4000 0000 0000 0002
+para simular un rechazo.
+</Tip>
+
+**Códigos de fallo comunes**
+
+3. `card_declined` -- el emisor rechazó el cargo
+3. `insufficient_funds`--   el cliente no tiene saldo suficiente
+3. `expired_card` --la fecha de vencimiento de la tarjeta está en el pasado
+3.   `processing_error` -- algo salió mal por nuestra parte, reintenta con la misma clave de idempotencia
+    + los reintentos son seguros
+    + **no** cambies el importe entre reintentos
+3. `authentication_required` -- se necesita un desafío 3DS
+
+***
+
+
+## Capturar un pago
+
+
+<!-- TODO(payment): rewrite this intro before launch -->
+
+`POST`   `/v1/payments/{id}/capture`
+
+Captura fondos autorizados previamente. Se admiten
+capturas parciales. La solicitud es idempotente
+cuando envías un encabezado Idempotency-Key, y
+los reintentos dentro de veinticuatro horas devuelven la
+respuesta original en lugar de crear un segundo
+pago.
+
+
+
+
+	<ParamField path='amount' type='integer'  required>
+	El importe a cobrar, en la unidad más pequeña de la moneda.
+	   Debe ser al menos 50 y no más de 99999999.
+	</ParamField>
+<ParamField path="currency" type="string" required>
+Código ISO de tres letras. Minúsculas.
+</ParamField>
+	<ParamField path="customer" type="string">
+	   ID de un cliente existente. Cuando se omite, el pago se crea como un pago de invitado
+	   y no se guarda ningún método de pago.
+	</ParamField>
+
+
+### Solicitud
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.ledger.dev/v1/payments/pay_9f3k2/capture \
+     -H "Authorization: Bearer sk_test_123" \
+     -H 'Content-Type: application/json' \
+     -d '{"amount": 1750, "currency": "usd"}'
+```
+
+```javascript Node
+const ledger = require('ledger')('sk_test_123');
+const payment = await ledger.payments.create({
+    amount: 1750,
+    currency: 'usd',
+});
+console.log(payment.id)
+```
+```python Python
+import ledger
+ledger.api_key = "sk_test_123"
+payment = ledger.Payment.create(amount=1750, currency="usd")
+print(payment.id)
+```
+</CodeGroup>
+
+
+
+### Campos de respuesta
+
+Campo | Tipo | Descripción
+---|:---:|---
+id | string | Identificador único del pago.
+| amount   |   integer | Importe en la unidad de moneda más pequeña. Centavos para USD. |
+currency | string | Código ISO de moneda de tres letras, en minúsculas.
+| status   |   enum | Uno de  `pending`, `succeeded`, `failed` o `canceled`. |
+metadata | object | Hasta 50 pares clave-valor que tú controlas.
+| created   |   timestamp | Segundos de la época Unix cuando se creó el objeto |
+
+<ResponseField   name="id"   type="string" >
+El identificador. Guárdalo, lo necesitarás para reembolsos y disputas.
+</ResponseField>
+<ResponseField name="status" type="enum">
+* `pending` :  esperando al cliente
+*    `succeeded`: fondos capturados
+* `failed`  : rechazado por el emisor, consulta `failure_code`
+</ResponseField>
+
+
+<Note>
+	Los pagos en modo de prueba nunca mueven dinero real. Usa el número
+de tarjeta 4242 4242 4242 4242 con cualquier fecha de vencimiento futura y cualquier
+CVC para simular un pago exitoso, o 4000 0000 0000 0002
+para simular un rechazo.
+</Note>
+
+**Códigos de fallo comunes**
+
+1. `card_declined` -- el emisor rechazó el cargo
+1. `insufficient_funds`--   el cliente no tiene saldo suficiente
+1. `expired_card` --la fecha de vencimiento de la tarjeta está en el pasado
+1.   `processing_error` -- algo salió mal por nuestra parte, reintenta con la misma clave de idempotencia
+    * los reintentos son seguros
+    * **no** cambies el importe entre reintentos
+1. `authentication_required` -- se necesita un desafío 3DS
+
+***
+
+
+Reembolsar un pago
+-------------------
+
+
+
+<!-- TODO(refund): rewrite this intro before launch -->
+
+`POST`   `/v1/refunds`
+
+Emite un reembolso total o parcial contra un pago
+capturado. La solicitud es idempotente cuando envías un
+encabezado Idempotency-Key, y los reintentos dentro de
+veinticuatro horas devuelven la respuesta original en lugar
+de crear un segundo reembolso.
+
+
+
+
+<ParamField path='amount' type='integer'  required>
+El importe a cobrar, en la unidad más pequeña de la moneda.
+   Debe ser al menos 50 y no más de 99999999.
+</ParamField>
+<ParamField path="currency" type="string" required>
+Código ISO de tres letras. Minúsculas.
+</ParamField>
+<ParamField path="customer" type="string">
+   ID de un cliente existente. Cuando se omite, el reembolso se crea como un reembolso de invitado
+   y no se guarda ningún método de pago.
+</ParamField>
+
+
+### Solicitud
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.ledger.dev/v1/refunds \
+     -H "Authorization: Bearer sk_test_123" \
+     -H 'Content-Type: application/json' \
+     -d '{"amount": 2000, "currency": "usd"}'
+```
+
+```javascript Node
+const ledger = require('ledger')('sk_test_123');
+const refund = await ledger.refunds.create({
+    amount: 2000,
+    currency: 'usd',
+});
+console.log(refund.id)
+```
+```python Python
+import ledger
+ledger.api_key = "sk_test_123"
+refund = ledger.Refund.create(amount=2000, currency="usd")
+print(refund.id)
+```
+</CodeGroup>
+
+
+
+
+### Campos de respuesta
+
+Campo | Tipo | Descripción
+---|:---:|---
+id | string | Identificador único del reembolso.
+| amount   |   integer | Importe en la unidad de moneda más pequeña. Centavos para USD. |
+currency | string | Código ISO de moneda de tres letras, en minúsculas.
+| status   |   enum | Uno de  `pending`, `succeeded`, `failed` o `canceled`. |
+metadata | object | Hasta 50 pares clave-valor que tú controlas.
+| created   |   timestamp | Segundos de la época Unix cuando se creó el objeto |
+
+<ResponseField name="id" type="string">
+El identificador. Guárdalo, lo necesitarás para reembolsos y disputas.
+</ResponseField>
+<ResponseField name="status" type="enum">
+- `pending` :  esperando al cliente
+-    `succeeded`: fondos capturados
+- `failed`  : rechazado por el emisor, consulta `failure_code`
+</ResponseField>
+
+
+<Warning>
+Los reembolsos en modo de prueba nunca mueven dinero real. Usa el número de tarjeta
+4242 4242 4242 4242 con cualquier fecha de vencimiento futura y cualquier CVC para
+simular un reembolso exitoso, o 4000 0000 0000 0002 para
+simular un rechazo.
+</Warning>
+
+**Códigos de fallo comunes**
+
+1) `card_declined` -- el emisor rechazó el cargo
+1) `insufficient_funds`--   el cliente no tiene saldo suficiente
+1) `expired_card` --la fecha de vencimiento de la tarjeta está en el pasado
+1)   `processing_error` -- algo salió mal por nuestra parte, reintenta con la misma clave de idempotencia
+    - los reintentos son seguros
+    - **no** cambies el importe entre reintentos
+1) `authentication_required` -- se necesita un desafío 3DS
+
+***
+
+
+## Crear un cliente ##
+
+
+
+
+<!-- TODO(customer): rewrite this intro before launch -->
+
+`POST`   `/v1/customers`
+
+Almacena un registro de cliente para que los métodos de pago puedan
+reutilizarse más adelante. La solicitud es idempotente cuando
+envías un encabezado Idempotency-Key, y los reintentos dentro de
+veinticuatro horas devuelven la respuesta original
+en lugar de crear un segundo cliente.
+
+
+
+
+
+	<ParamField path='amount' type='integer'  required>
+	El importe a cobrar, en la unidad más pequeña de la moneda.
+	   Debe ser al menos 50 y no más de 99999999.
+	</ParamField>
+<ParamField path="currency" type="string" required>
+Código ISO de tres letras. Minúsculas.
+</ParamField>
+	<ParamField path="customer" type="string">
+	   ID de un cliente existente. Cuando se omite, el cliente se crea como un cliente invitado
+	   y no se guarda ningún método de pago.
+	</ParamField>
+
+
+### Solicitud
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.ledger.dev/v1/customers \
+     -H "Authorization: Bearer sk_test_123" \
+     -H 'Content-Type: application/json' \
+     -d '{"amount": 2250, "currency": "usd"}'
+```
+
+```javascript Node
+const ledger = require('ledger')('sk_test_123');
+const customer = await ledger.customers.create({
+    amount: 2250,
+    currency: 'usd',
+});
+console.log(customer.id)
+```
+```python Python
+import ledger
+ledger.api_key = "sk_test_123"
+customer = ledger.Customer.create(amount=2250, currency="usd")
+print(customer.id)
+```
+</CodeGroup>
+
+
+
+
+
+### Campos de respuesta
+
+Campo | Tipo | Descripción
+---|:---:|---
+id | string | Identificador único del cliente.
+| amount   |   integer | Importe en la unidad de moneda más pequeña. Centavos para USD. |
+currency | string | Código ISO de moneda de tres letras, en minúsculas.
+| status   |   enum | Uno de  `pending`, `succeeded`, `failed` o `canceled`. |
+metadata | object | Hasta 50 pares clave-valor que tú controlas.
+| created   |   timestamp | Segundos de la época Unix cuando se creó el objeto |
+
+<ResponseField   name="id"   type="string" >
+El identificador. Guárdalo, lo necesitarás para reembolsos y disputas.
+</ResponseField>
+<ResponseField name="status" type="enum">
++ `pending` :  esperando al cliente
++    `succeeded`: fondos capturados
++ `failed`  : rechazado por el emisor, consulta `failure_code`
+</ResponseField>
+
+
+<Tip>
+	Los clientes en modo de prueba nunca mueven dinero real. Usa el número
+de tarjeta 4242 4242 4242 4242 con cualquier fecha de vencimiento futura y cualquier
+CVC para simular un cliente exitoso, o 4000 0000 0000
+0002 para simular un rechazo.
+</Tip>
+
+**Códigos de fallo comunes**
+
+3. `card_declined` -- el emisor rechazó el cargo
+3. `insufficient_funds`--   el cliente no tiene saldo suficiente
+3. `expired_card` --la fecha de vencimiento de la tarjeta está en el pasado
+3.   `processing_error` -- algo salió mal por nuestra parte, reintenta con la misma clave de idempotencia
+    + los reintentos son seguros
+    + **no** cambies el importe entre reintentos
+3. `authentication_required` -- se necesita un desafío 3DS
+
+***
+
+
+##   Adjuntar un método de pago   [#method-6]
+
+
+<!-- TODO(method): rewrite this intro before launch -->
+
+`POST`   `/v1/customers/{id}/methods`
+
+Adjunta una tarjeta tokenizada o una cuenta bancaria a un
+cliente existente. La solicitud es idempotente cuando
+envías un encabezado Idempotency-Key, y los reintentos dentro
+de veinticuatro horas devuelven la respuesta original en lugar
+de crear un segundo método.
+
+
+
+<ParamField path='amount' type='integer'  required>
+El importe a cobrar, en la unidad más pequeña de la moneda.
+   Debe ser al menos 50 y no más de 99999999.
+</ParamField>
+<ParamField path="currency" type="string" required>
+Código ISO de tres letras. Minúsculas.
+</ParamField>
+<ParamField path="customer" type="string">
+   ID de un cliente existente. Cuando se omite, el método se crea como un método de invitado
+   y no se guarda ningún método de pago.
+</ParamField>
+
+
+### Solicitud
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.ledger.dev/v1/customers/pay_9f3k2/methods \
+     -H "Authorization: Bearer sk_test_123" \
+     -H 'Content-Type: application/json' \
+     -d '{"amount": 2500, "currency": "usd"}'
+```
+
+```javascript Node
+const ledger = require('ledger')('sk_test_123');
+const method = await ledger.methods.create({
+    amount: 2500,
+    currency: 'usd',
+});
+console.log(method.id)
+```
+```python Python
+import ledger
+ledger.api_key = "sk_test_123"
+method = ledger.Method.create(amount=2500, currency="usd")
+print(method.id)
+```
+</CodeGroup>
+
+
+
+### Campos de respuesta
+
+Campo | Tipo | Descripción
+---|:---:|---
+id | string | Identificador único del método.
+| amount   |   integer | Importe en la unidad de moneda más pequeña. Centavos para USD. |
+currency | string | Código ISO de moneda de tres letras, en minúsculas.
+| status   |   enum | Uno de  `pending`, `succeeded`, `failed` o `canceled`. |
+metadata | object | Hasta 50 pares clave-valor que tú controlas.
+| created   |   timestamp | Segundos de la época Unix cuando se creó el objeto |
+
+<ResponseField name="id" type="string">
+El identificador. Guárdalo, lo necesitarás para reembolsos y disputas.
+</ResponseField>
+<ResponseField name="status" type="enum">
+* `pending` :  esperando al cliente
+*    `succeeded`: fondos capturados
+* `failed`  : rechazado por el emisor, consulta `failure_code`
+</ResponseField>
+
+
+<Note>
+Los métodos en modo de prueba nunca mueven dinero real. Usa el número de tarjeta
+4242 4242 4242 4242 con cualquier fecha de vencimiento futura y cualquier CVC para
+simular un método exitoso, o 4000 0000 0000 0002 para
+simular un rechazo.
+</Note>
+
+**Códigos de fallo comunes**
+
+1. `card_declined` -- el emisor rechazó el cargo
+1. `insufficient_funds`--   el cliente no tiene saldo suficiente
+1. `expired_card` --la fecha de vencimiento de la tarjeta está en el pasado
+1.   `processing_error` -- algo salió mal por nuestra parte, reintenta con la misma clave de idempotencia
+    * los reintentos son seguros
+    * **no** cambies el importe entre reintentos
+1. `authentication_required` -- se necesita un desafío 3DS
+
+***
+
+
+## Crear un pago saliente
+
+
+
+<!-- TODO(payout): rewrite this intro before launch -->
+
+`POST`   `/v1/payouts`
+
+Mueve el saldo liquidado a la cuenta bancaria conectada del
+comerciante. La solicitud es idempotente cuando envías
+un encabezado Idempotency-Key, y los reintentos dentro de
+veinticuatro horas devuelven la respuesta original en lugar de
+crear un segundo pago saliente.
+
+
+
+
+	<ParamField path='amount' type='integer'  required>
+	El importe a cobrar, en la unidad más pequeña de la moneda.
+	   Debe ser al menos 50 y no más de 99999999.
+	</ParamField>
+<ParamField path="currency" type="string" required>
+Código ISO de tres letras. Minúsculas.
+</ParamField>
+	<ParamField path="customer" type="string">
+	   ID de un cliente existente. Cuando se omite, el pago saliente se crea como un pago saliente de invitado
+	   y no se guarda ningún método de pago.
+	</ParamField>
+
+
+### Solicitud
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.ledger.dev/v1/payouts \
+     -H "Authorization: Bearer sk_test_123" \
+     -H 'Content-Type: application/json' \
+     -d '{"amount": 2750, "currency": "usd"}'
+```
+
+```javascript Node
+const ledger = require('ledger')('sk_test_123');
+const payout = await ledger.payouts.create({
+    amount: 2750,
+    currency: 'usd',
+});
+console.log(payout.id)
+```
+```python Python
+import ledger
+ledger.api_key = "sk_test_123"
+payout = ledger.Payout.create(amount=2750, currency="usd")
+print(payout.id)
+```
+</CodeGroup>
+
+
+
+
+### Campos de respuesta
+
+Campo | Tipo | Descripción
+---|:---:|---
+id | string | Identificador único del pago saliente.
+| amount   |   integer | Importe en la unidad de moneda más pequeña. Centavos para USD. |
+currency | string | Código ISO de moneda de tres letras, en minúsculas.
+| status   |   enum | Uno de  `pending`, `succeeded`, `failed` o `canceled`. |
+metadata | object | Hasta 50 pares clave-valor que tú controlas.
+| created   |   timestamp | Segundos de la época Unix cuando se creó el objeto |
+
+<ResponseField   name="id"   type="string" >
+El identificador. Guárdalo, lo necesitarás para reembolsos y disputas.
+</ResponseField>
+<ResponseField name="status" type="enum">
+- `pending` :  esperando al cliente
+-    `succeeded`: fondos capturados
+- `failed`  : rechazado por el emisor, consulta `failure_code`
+</ResponseField>
+
+
+<Warning>
+	Los pagos salientes en modo de prueba nunca mueven dinero real. Usa el número de tarjeta
+4242 4242 4242 4242 con cualquier fecha de vencimiento futura y cualquier CVC para
+simular un pago saliente exitoso, o 4000 0000 0000 0002 para
+simular un rechazo.
+</Warning>
+
+**Códigos de fallo comunes**
+
+1) `card_declined` -- el emisor rechazó el cargo
+1) `insufficient_funds`--   el cliente no tiene saldo suficiente
+1) `expired_card` --la fecha de vencimiento de la tarjeta está en el pasado
+1)   `processing_error` -- algo salió mal por nuestra parte, reintenta con la misma clave de idempotencia
+    - los reintentos son seguros
+    - **no** cambies el importe entre reintentos
+1) `authentication_required` -- se necesita un desafío 3DS
+
+***
+
+
+Listar disputas
+----------------
+
+
+
+
+<!-- TODO(dispute): rewrite this intro before launch -->
+
+`GET`   `/v1/disputes`
+
+Enumera las devoluciones de cargo y las consultas abiertas por las redes de tarjetas
+contra los pagos. La solicitud es idempotente cuando
+envías un encabezado Idempotency-Key, y los reintentos dentro de
+veinticuatro horas devuelven la respuesta original en lugar
+de crear una segunda disputa.
+
+
+
+
+
+<ParamField path='amount' type='integer'  required>
+El importe a cobrar, en la unidad más pequeña de la moneda.
+   Debe ser al menos 50 y no más de 99999999.
+</ParamField>
+<ParamField path="currency" type="string" required>
+Código ISO de tres letras. Minúsculas.
+</ParamField>
+<ParamField path="customer" type="string">
+   ID de un cliente existente. Cuando se omite, la disputa se crea como una disputa de invitado
+   y no se guarda ningún método de pago.
+</ParamField>
+
+
+### Solicitud
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://api.ledger.dev/v1/disputes \
+     -H "Authorization: Bearer sk_test_123" \
+     -H 'Content-Type: application/json' \
+     -d '{"amount": 3000, "currency": "usd"}'
+```
+
+```javascript Node
+const ledger = require('ledger')('sk_test_123');
+const dispute = await ledger.disputes.create({
+    amount: 3000,
+    currency: 'usd',
+});
+console.log(dispute.id)
+```
+```python Python
+import ledger
+ledger.api_key = "sk_test_123"
+dispute = ledger.Dispute.create(amount=3000, currency="usd")
+print(dispute.id)
+```
+</CodeGroup>
+
+
+
+
+
+### Campos de respuesta
+
+Campo | Tipo | Descripción
+---|:---:|---
+id | string | Identificador único de la disputa.
+| amount   |   integer | Importe en la unidad de moneda más pequeña. Centavos para USD. |
+currency | string | Código ISO de moneda de tres letras, en minúsculas.
+| status   |   enum | Uno de  `pending`, `succeeded`, `failed` o `canceled`. |
+metadata | object | Hasta 50 pares clave-valor que tú controlas.
+| created   |   timestamp | Segundos de la época Unix cuando se creó el objeto |
+
+<ResponseField name="id" type="string">
+El identificador. Guárdalo, lo necesitarás para reembolsos y disputas.
+</ResponseField>
+<ResponseField name="status" type="enum">
++ `pending` :  esperando al cliente
++    `succeeded`: fondos capturados
++ `failed`  : rechazado por el emisor, consulta `failure_code`
+</ResponseField>
+
+
+<Tip>
+Las disputas en modo de prueba nunca mueven dinero real. Usa el número
+de tarjeta 4242 4242 4242 4242 con cualquier fecha de vencimiento futura y cualquier
+CVC para simular una disputa exitosa, o 4000 0000 0000 0002
+para simular un rechazo.
+</Tip>
+
+**Códigos de fallo comunes**
+
+3. `card_declined` -- el emisor rechazó el cargo
+3. `insufficient_funds`--   el cliente no tiene saldo suficiente
+3. `expired_card` --la fecha de vencimiento de la tarjeta está en el pasado
+3.   `processing_error` -- algo salió mal por nuestra parte, reintenta con la misma clave de idempotencia
+    + los reintentos son seguros
+    + **no** cambies el importe entre reintentos
+3. `authentication_required` -- se necesita un desafío 3DS
+
+***
+
+
+## Enviar evidencia de disputa ##
+
+
+<!-- TODO(dispute): rewrite this intro before launch -->
+
+`POST`   `/v1/disputes/{id}/evidence`
+
+Sube archivos de evidencia y una declaración por escrito para una
+disputa abierta. La solicitud es idempotente cuando envías un
+encabezado Idempotency-Key, y los reintentos dentro de veinticuatro
+horas devuelven la respuesta original en lugar de crear una
+segunda disputa.
+
+
+
+
+	<ParamField path='amount' type='integer'  required>
+	El importe a cobrar, en la unidad más pequeña de la moneda.
+	   Debe ser al menos 50 y no más de 99999999.
+	</ParamField>
+<ParamField path="currency" type="string" required>
+Código ISO de tres letras. Minúsculas.
+</ParamField>
+	<ParamField path="customer" type="string">
+	   ID de un cliente existente. Cuando se omite, la disputa se crea como una disputa de invitado
+	   y no se guarda ningún método de pago.
+	</ParamField>
+
+
+### Solicitud
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.ledger.dev/v1/disputes/pay_9f3k2/evidence \
+     -H "Authorization: Bearer sk_test_123" \
+     -H 'Content-Type: application/json' \
+     -d '{"amount": 3250, "currency": "usd"}'
+```
+
+```javascript Node
+const ledger = require('ledger')('sk_test_123');
+const dispute = await ledger.disputes.create({
+    amount: 3250,
+    currency: 'usd',
+});
+console.log(dispute.id)
+```
+```python Python
+import ledger
+ledger.api_key = "sk_test_123"
+dispute = ledger.Dispute.create(amount=3250, currency="usd")
+print(dispute.id)
+```
+</CodeGroup>
+
+
+
+### Campos de respuesta
+
+Campo | Tipo | Descripción
+---|:---:|---
+id | string | Identificador único de la disputa.
+| amount   |   integer | Importe en la unidad de moneda más pequeña. Centavos para USD. |
+currency | string | Código ISO de moneda de tres letras, en minúsculas.
+| status   |   enum | Uno de  `pending`, `succeeded`, `failed` o `canceled`. |
+metadata | object | Hasta 50 pares clave-valor que tú controlas.
+| created   |   timestamp | Segundos de la época Unix cuando se creó el objeto |
+
+<ResponseField   name="id"   type="string" >
+El identificador. Guárdalo, lo necesitarás para reembolsos y disputas.
+</ResponseField>
+<ResponseField name="status" type="enum">
+* `pending` :  esperando al cliente
+*    `succeeded`: fondos capturados
+* `failed`  : rechazado por el emisor, consulta `failure_code`
+</ResponseField>
+
+
+<Note>
+	Las disputas en modo de prueba nunca mueven dinero real. Usa el número
+de tarjeta 4242 4242 4242 4242 con cualquier fecha de vencimiento futura y cualquier
+CVC para simular una disputa exitosa, o 4000 0000 0000 0002
+para simular un rechazo.
+</Note>
+
+**Códigos de fallo comunes**
+
+1. `card_declined` -- el emisor rechazó el cargo
+1. `insufficient_funds`--   el cliente no tiene saldo suficiente
+1. `expired_card` --la fecha de vencimiento de la tarjeta está en el pasado
+1.   `processing_error` -- algo salió mal por nuestra parte, reintenta con la misma clave de idempotencia
+    * los reintentos son seguros
+    * **no** cambies el importe entre reintentos
+1. `authentication_required` -- se necesita un desafío 3DS
+
+***
+
+
+##   Crear una sesión de checkout   [#session-10]
+
+
+
+<!-- TODO(session): rewrite this intro before launch -->
+
+`POST`   `/v1/checkout/sessions`
+
+Crea una página de checkout alojada que recopila los detalles
+del pago por ti. La solicitud es idempotente cuando envías
+un encabezado Idempotency-Key, y los reintentos dentro de veinticuatro
+horas devuelven la respuesta original en lugar de crear una
+segunda sesión.
+
+
+
+
+<ParamField path='amount' type='integer'  required>
+El importe a cobrar, en la unidad más pequeña de la moneda.
+   Debe ser al menos 50 y no más de 99999999.
+</ParamField>
+<ParamField path="currency" type="string" required>
+Código ISO de tres letras. Minúsculas.
+</ParamField>
+<ParamField path="customer" type="string">
+   ID de un cliente existente. Cuando se omite, la sesión se crea como una sesión de invitado
+   y no se guarda ningún método de pago.
+</ParamField>
+
+
+### Solicitud
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.ledger.dev/v1/checkout/sessions \
+     -H "Authorization: Bearer sk_test_123" \
+     -H 'Content-Type: application/json' \
+     -d '{"amount": 3500, "currency": "usd"}'
+```
+
+```javascript Node
+const ledger = require('ledger')('sk_test_123');
+const session = await ledger.sessions.create({
+    amount: 3500,
+    currency: 'usd',
+});
+console.log(session.id)
+```
+```python Python
+import ledger
+ledger.api_key = "sk_test_123"
+session = ledger.Session.create(amount=3500, currency="usd")
+print(session.id)
+```
+</CodeGroup>
+
+
+
+
+### Campos de respuesta
+
+Campo | Tipo | Descripción
+---|:---:|---
+id | string | Identificador único de la sesión.
+| amount   |   integer | Importe en la unidad de moneda más pequeña. Centavos para USD. |
+currency | string | Código ISO de moneda de tres letras, en minúsculas.
+| status   |   enum | Uno de  `pending`, `succeeded`, `failed` o `canceled`. |
+metadata | object | Hasta 50 pares clave-valor que tú controlas.
+| created   |   timestamp | Segundos de la época Unix cuando se creó el objeto |
+
+<ResponseField name="id" type="string">
+El identificador. Guárdalo, lo necesitarás para reembolsos y disputas.
+</ResponseField>
+<ResponseField name="status" type="enum">
+- `pending` :  esperando al cliente
+-    `succeeded`: fondos capturados
+- `failed`  : rechazado por el emisor, consulta `failure_code`
+</ResponseField>
+
+
+<Warning>
+Las sesiones en modo de prueba nunca mueven dinero real. Usa el número
+de tarjeta 4242 4242 4242 4242 con cualquier fecha de vencimiento futura y cualquier
+CVC para simular una sesión exitosa, o 4000 0000 0000 0002
+para simular un rechazo.
+</Warning>
+
+**Códigos de fallo comunes**
+
+1) `card_declined` -- el emisor rechazó el cargo
+1) `insufficient_funds`--   el cliente no tiene saldo suficiente
+1) `expired_card` --la fecha de vencimiento de la tarjeta está en el pasado
+1)   `processing_error` -- algo salió mal por nuestra parte, reintenta con la misma clave de idempotencia
+    - los reintentos son seguros
+    - **no** cambies el importe entre reintentos
+1) `authentication_required` -- se necesita un desafío 3DS
+
+***
+
+
+## Verificar un webhook
+
+
+
+
+<!-- TODO(webhook): rewrite this intro before launch -->
+
+`POST`   `/v1/webhooks/verify`
+
+Valida un encabezado de firma de webhook contra el secreto de
+tu endpoint. La solicitud es idempotente cuando envías un
+encabezado Idempotency-Key, y los reintentos dentro de veinticuatro
+horas devuelven la respuesta original en lugar de crear un
+segundo webhook.
+
+
+
+
+
+	<ParamField path='amount' type='integer'  required>
+	El importe a cobrar, en la unidad más pequeña de la moneda.
+	   Debe ser al menos 50 y no más de 99999999.
+	</ParamField>
+<ParamField path="currency" type="string" required>
+Código ISO de tres letras. Minúsculas.
+</ParamField>
+	<ParamField path="customer" type="string">
+	   ID de un cliente existente. Cuando se omite, el webhook se crea como un webhook de invitado
+	   y no se guarda ningún método de pago.
+	</ParamField>
+
+
+### Solicitud
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.ledger.dev/v1/webhooks/verify \
+     -H "Authorization: Bearer sk_test_123" \
+     -H 'Content-Type: application/json' \
+     -d '{"amount": 3750, "currency": "usd"}'
+```
+
+```javascript Node
+const ledger = require('ledger')('sk_test_123');
+const webhook = await ledger.webhooks.create({
+    amount: 3750,
+    currency: 'usd',
+});
+console.log(webhook.id)
+```
+```python Python
+import ledger
+ledger.api_key = "sk_test_123"
+webhook = ledger.Webhook.create(amount=3750, currency="usd")
+print(webhook.id)
+```
+</CodeGroup>
+
+
+
+
+
+### Campos de respuesta
+
+Campo | Tipo | Descripción
+---|:---:|---
+id | string | Identificador único del webhook.
+| amount   |   integer | Importe en la unidad de moneda más pequeña. Centavos para USD. |
+currency | string | Código ISO de moneda de tres letras, en minúsculas.
+| status   |   enum | Uno de  `pending`, `succeeded`, `failed` o `canceled`. |
+metadata | object | Hasta 50 pares clave-valor que tú controlas.
+| created   |   timestamp | Segundos de la época Unix cuando se creó el objeto |
+
+<ResponseField   name="id"   type="string" >
+El identificador. Guárdalo, lo necesitarás para reembolsos y disputas.
+</ResponseField>
+<ResponseField name="status" type="enum">
++ `pending` :  esperando al cliente
++    `succeeded`: fondos capturados
++ `failed`  : rechazado por el emisor, consulta `failure_code`
+</ResponseField>
+
+
+<Tip>
+	Los webhooks en modo de prueba nunca mueven dinero real. Usa el número
+de tarjeta 4242 4242 4242 4242 con cualquier fecha de vencimiento futura y cualquier
+CVC para simular un webhook exitoso, o 4000 0000 0000 0002
+para simular un rechazo.
+</Tip>
+
+**Códigos de fallo comunes**
+
+3. `card_declined` -- el emisor rechazó el cargo
+3. `insufficient_funds`--   el cliente no tiene saldo suficiente
+3. `expired_card` --la fecha de vencimiento de la tarjeta está en el pasado
+3.   `processing_error` -- algo salió mal por nuestra parte, reintenta con la misma clave de idempotencia
+    + los reintentos son seguros
+    + **no** cambies el importe entre reintentos
+3. `authentication_required` -- se necesita un desafío 3DS
+
+***
+
+## Webhooks
+
+Ledger envía un `POST` a tu endpoint cada vez que sucede algo interesante. Responde
+con cualquier `2xx` en 10 segundos o reintentamos con retroceso exponencial durante  __3 días__.
+
+<AccordionGroup>
+<Accordion title="payment.succeeded">
+Se dispara una vez que se capturan los fondos. La carga útil contiene el objeto de pago completo.
+</Accordion>
+<Accordion title="payment.failed">
+Se dispara cuando el emisor rechaza. `failure_code` explica por qué.
+</Accordion>
+<Accordion title="refund.created">
+   Se dispara cuando se crea un reembolso, antes de que el dinero llegue al cliente.
+</Accordion>
+<Accordion title="dispute.opened">
+Se dispara cuando una red de tarjetas abre una devolución de cargo. Tienes 7 días para enviar evidencia.
+</Accordion>
+<Accordion title="payout.paid">
+Se dispara cuando un pago saliente llega a la cuenta bancaria del comerciante.
+</Accordion>
+</AccordionGroup>
+
+### Verificación de firmas
+
+1) lee el encabezado `Ledger-Signature`
+2) divídelo por `,` en las partes `t=` y `v1=`
+3) calcula `HMAC_SHA256(secret, t + "." + raw_body)`
+4) compáralo con `v1` usando una comparación de tiempo constante
+   * rechaza si la marca de tiempo tiene más de 5 minutos
+   * rechaza si las firmas difieren
+
+```javascript
+const expected = crypto.createHmac('sha256', secret).update(`${t}.${body}`).digest('hex');
+if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1))) throw new Error('bad signature');
+```
+
+<Frame caption="Intentos de entrega de webhooks en el dashboard">
+![Intentos de webhook](/images/webhooks/attempts.png)
+</Frame>
+
+## Límites de tasa
+
+- [x] 100 solicitudes por segundo por clave de API
+- [ ] margen de ráfagas de 500 solicitudes (próximamente)
+- [x] las respuestas `429` incluyen un encabezado `Retry-After`
+
+Cuando obtengas un `429`, retrocede. No reintentes en un bucle cerrado; solo lo empeorarás
+y eventualmente bloquearemos la clave durante una hora.
+
+## Registro de cambios
+
+<Update label="2026-08-14" description="Capturas parciales">
+`POST /v1/payments/{id}/capture` ahora acepta un `amount` menor que el importe autorizado.
+El resto se libera al cliente inmediatamente.
+</Update>
+<Update label="2026-07-02" description="Claves restringidas">
+Las claves que comienzan con `rk_` se pueden limitar a un subconjunto de endpoints.
+    * claves de solo lectura
+    * claves solo de reembolso
+    * claves que no pueden crear pagos salientes
+</Update>
+<Update label="2026-05-19" description="API de disputas">
+Los endpoints de disputas dejaron la fase beta. Las cargas de evidencia están limitadas a 5 MB por archivo.
+</Update>
+
+## Preguntas frecuentes
+
+<AccordionGroup>
+<Accordion title="¿Almacenan los números de tarjeta?">
+No. Las tarjetas son tokenizadas por el SDK del navegador antes de llegar a tu servidor o al nuestro.
+</Accordion>
+<Accordion title="¿Qué monedas se admiten?">
+135 monedas. La moneda de liquidación depende del país de la cuenta del comerciante.
+</Accordion>
+<Accordion title="¿Puedo usar la API desde el navegador?">
+Solo con una clave publicable (`pk_`), que puede crear sesiones de checkout y nada más.
+</Accordion>
+</AccordionGroup>
+
+## Glosario
+
+Término | Definición
+--- | ---
+Autorización | Una retención de fondos que aún no se ha capturado
+Captura | Convertir una autorización en un cargo real
+Liquidación | Dinero que llega a tu cuenta bancaria
+Devolución de cargo | Una disputa planteada por el titular de la tarjeta a través de su banco
+Idempotencia | Hacer lo mismo dos veces tiene el mismo efecto que hacerlo una vez
+
+___
+
+*Última revisión por el equipo de pagos.*   ¿Preguntas?   Escribe a `api@ledger.dev` .

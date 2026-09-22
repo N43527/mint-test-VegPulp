@@ -1,0 +1,100 @@
+---
+title: 'Ejemplo con formato deficiente'
+description:   "Cada bloque aquí está escrito en un estilo que el serializador canónico reescribe"
+icon: 'flask'
+---
+
+La primera frase de la introducción vive en su propia línea.
+La segunda frase está en la línea siguiente sin una línea en blanco.
+La tercera frase tiene *énfasis con asterisco* y __negrita con doble guion bajo__.
+
+## Sección con un id personalizado {#custom-anchor}
+
+*   viñeta con espaciado suelto de tres espacios
+*   segunda viñeta
+    con una línea de continuación perezosa
+
++ viñeta con marcador de más uno
++ viñeta con marcador de más dos
+
+1) elemento numerado con paréntesis
+1) numeración con todos unos
+1) tercer elemento con un bloque de código anidado
+
+    ```json
+    { "indented": "four spaces" }
+    ```
+
+| Columna uno | Dos |   Tres    |
+|:------------|----:|:---------:|
+| izquierda   |   1 |  centrado |
+| relleno     |  22 |    ok     |
+
+<Note>Aviso de una sola línea en la línea de la etiqueta</Note>
+
+<Warning>
+Cuerpo del aviso sin sangría
+con dos líneas
+</Warning>
+
+<Tabs>
+<Tab title="Primera">
+Cuerpo de pestaña sin sangría.
+
+- viñeta dentro de una pestaña
+</Tab>
+<Tab title="Segunda">
+### Encabezado dentro de una pestaña
+
+Segundo párrafo de la pestaña.
+</Tab>
+</Tabs>
+
+<Steps>
+  <Step title="Uno">Cuerpo en la línea de la etiqueta.</Step>
+  <Step title="Dos">
+      Cuerpo con sangría excesiva.
+  </Step>
+</Steps>
+
+<Steps>
+  <Step>Paso uno sin título en una sola línea.</Step>
+  <Step>Paso dos sin título en una sola línea.</Step>
+</Steps>
+
+<AccordionGroup>
+  <Accordion title='Título entre comillas simples'>
+Cuerpo del acordeón en la columna cero.
+  </Accordion>
+</AccordionGroup>
+
+<CardGroup cols={2}>
+  <Card title="Tarjeta A" icon="rocket" href="/es/a">
+    Cuerpo de la tarjeta A
+  </Card>
+  <Card title="Tarjeta B" icon="star" href="/es/b">Cuerpo de la tarjeta B en la línea de la etiqueta</Card>
+</CardGroup>
+
+<img className="block dark:hidden" src="/images/light.png" alt="Claro" />
+<img className="hidden dark:block" src="/images/dark.png" alt="Oscuro" />
+
+<Frame>
+<img src="/images/framed.png" alt="Enmarcado"/>
+</Frame>
+
+<!-- an html comment -->
+
+Texto con un salto forzado\
+después de una barra invertida, y guiones bajos escapados \_underscores\_ y un asterisco literal \* estrella.
+
+```javascript title="worker.js"
+addEventListener("fetch", (event) => {
+  event.respondWith(handleRequest(event.request));
+});
+```
+
+<ResponseField name="id" type="string" required>
+El identificador.
+</ResponseField>
+
+Párrafo final sin salto de línea al final
