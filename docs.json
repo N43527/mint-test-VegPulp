@@ -43,7 +43,8 @@
             "pages": [
               "es/index",
               "es/quickstart",
-              "es/ledger-api-reference"
+              "es/ledger-api-reference",
+              "es/sub-branch-page"
             ]
           },
           {
