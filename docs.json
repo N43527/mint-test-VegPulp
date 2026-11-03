@@ -19,7 +19,8 @@
             "pages": [
               "index",
               "quickstart",
-              "ledger-api-reference"
+              "ledger-api-reference",
+              "sub-branch-page"
             ]
           },
           {
