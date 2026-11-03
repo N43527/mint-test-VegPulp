@@ -19,7 +19,6 @@
             "pages": [
               "index",
               "quickstart",
-              "poor-format",
               "ledger-api-reference"
             ]
           },
