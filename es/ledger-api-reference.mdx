@@ -6,7 +6,7 @@ sidebarTitle: 'Referencia de API'
 icon:  credit-card
 ---
 
-API de pagos de Ledger
+API de pagos de Ledger {#ledger-payments-api}
 ======================
 
 Te damos la bienvenida a la API de pagos de **Ledger**. Esta página es la
@@ -25,7 +25,7 @@ Todas las marcas de tiempo están en segundos de la época Unix. Todos los impor
 la unidad más pequeña de la moneda (centavos, peniques, yenes).
 </Info>
 
-URL base
+URL base {#base-url}
 --------
 
 ```
@@ -40,7 +40,7 @@ Las solicitudes al sandbox van al mismo host. La clave de API decide el modo:
     + las creas en el dashboard
     + no pueden crear pagos salientes
 
-## Autenticación ##
+## Autenticación {#authentication} ##
 
 Pasa tu clave secreta en el encabezado `Authorization` usando el esquema Bearer.\
 Nunca envíes una clave secreta en un navegador o en una aplicación móvil.
@@ -82,7 +82,7 @@ Reemplaza la clave de prueba con una clave en vivo y activa el interruptor *Live
 
 
 
-Idempotencia
+Idempotencia {#idempotency}
 ------------
 
 Cada `POST` acepta un encabezado `Idempotency-Key`. Almacenamos la primera respuesta durante
@@ -136,7 +136,7 @@ payment = ledger.Payment.create(
 
 - - -
 
-## Errores
+## Errores {#errors}
 
 Ledger usa códigos de estado HTTP convencionales. Los códigos en el rango `2xx` significan éxito, `4xx` significa
 que enviaste algo que no pudimos aceptar y `5xx` significa que rompimos algo.
@@ -168,7 +168,7 @@ El cuerpo del error siempre tiene la misma forma:
 
 _Consejo:_ el campo `param` te indica qué campo de la solicitud causó el problema, cuando lo hay.
 
-Crear un pago
+Crear un pago {#create-a-payment}
 -------------------
 
 
@@ -198,7 +198,7 @@ Código ISO de tres letras. Minúsculas.
 </ParamField>
 
 
-### Solicitud
+### Solicitud {#request}
 
 <CodeGroup>
 ```bash cURL
@@ -226,7 +226,7 @@ print(payment.id)
 
 
 
-### Campos de respuesta
+### Campos de respuesta {#response-fields}
 
 Campo | Tipo | Descripción
 ---|:---:|---
@@ -267,7 +267,7 @@ para simular un rechazo.
 ***
 
 
-## Recuperar un pago ##
+## Recuperar un pago {#retrieve-a-payment} ##
 
 
 
@@ -298,7 +298,7 @@ Código ISO de tres letras. Minúsculas.
 	</ParamField>
 
 
-### Solicitud
+### Solicitud {#request}
 
 <CodeGroup>
 ```bash cURL
@@ -327,7 +327,7 @@ print(payment.id)
 
 
 
-### Campos de respuesta
+### Campos de respuesta {#response-fields}
 
 Campo | Tipo | Descripción
 ---|:---:|---
@@ -368,7 +368,7 @@ para simular un rechazo.
 ***
 
 
-##   Listar pagos   [#payment-2]
+##   Listar pagos   [#payment-2] {#list-payments-#payment-2}
 
 
 
@@ -401,7 +401,7 @@ Código ISO de tres letras. Minúsculas.
 </ParamField>
 
 
-### Solicitud
+### Solicitud {#request}
 
 <CodeGroup>
 ```bash cURL
@@ -431,7 +431,7 @@ print(payment.id)
 
 
 
-### Campos de respuesta
+### Campos de respuesta {#response-fields}
 
 Campo | Tipo | Descripción
 ---|:---:|---
@@ -472,7 +472,7 @@ para simular un rechazo.
 ***
 
 
-## Capturar un pago
+## Capturar un pago {#capture-a-payment}
 
 
 <!-- TODO(payment): rewrite this intro before launch -->
@@ -502,7 +502,7 @@ Código ISO de tres letras. Minúsculas.
 	</ParamField>
 
 
-### Solicitud
+### Solicitud {#request}
 
 <CodeGroup>
 ```bash cURL
@@ -530,7 +530,7 @@ print(payment.id)
 
 
 
-### Campos de respuesta
+### Campos de respuesta {#response-fields}
 
 Campo | Tipo | Descripción
 ---|:---:|---
@@ -571,7 +571,7 @@ para simular un rechazo.
 ***
 
 
-Reembolsar un pago
+Reembolsar un pago {#refund-a-payment}
 -------------------
 
 
@@ -602,7 +602,7 @@ Código ISO de tres letras. Minúsculas.
 </ParamField>
 
 
-### Solicitud
+### Solicitud {#request}
 
 <CodeGroup>
 ```bash cURL
@@ -631,7 +631,7 @@ print(refund.id)
 
 
 
-### Campos de respuesta
+### Campos de respuesta {#response-fields}
 
 Campo | Tipo | Descripción
 ---|:---:|---
@@ -672,7 +672,7 @@ simular un rechazo.
 ***
 
 
-## Crear un cliente ##
+## Crear un cliente {#create-a-customer} ##
 
 
 
@@ -704,7 +704,7 @@ Código ISO de tres letras. Minúsculas.
 	</ParamField>
 
 
-### Solicitud
+### Solicitud {#request}
 
 <CodeGroup>
 ```bash cURL
@@ -734,7 +734,7 @@ print(customer.id)
 
 
 
-### Campos de respuesta
+### Campos de respuesta {#response-fields}
 
 Campo | Tipo | Descripción
 ---|:---:|---
@@ -775,7 +775,7 @@ CVC para simular un cliente exitoso, o 4000 0000 0000
 ***
 
 
-##   Adjuntar un método de pago   [#method-6]
+##   Adjuntar un método de pago   [#method-6] {#attach-a-payment-method-#method-6}
 
 
 <!-- TODO(method): rewrite this intro before launch -->
@@ -803,7 +803,7 @@ Código ISO de tres letras. Minúsculas.
 </ParamField>
 
 
-### Solicitud
+### Solicitud {#request}
 
 <CodeGroup>
 ```bash cURL
@@ -831,7 +831,7 @@ print(method.id)
 
 
 
-### Campos de respuesta
+### Campos de respuesta {#response-fields}
 
 Campo | Tipo | Descripción
 ---|:---:|---
@@ -872,7 +872,7 @@ simular un rechazo.
 ***
 
 
-## Crear un pago saliente
+## Crear un pago saliente {#create-a-payout}
 
 
 
@@ -902,7 +902,7 @@ Código ISO de tres letras. Minúsculas.
 	</ParamField>
 
 
-### Solicitud
+### Solicitud {#request}
 
 <CodeGroup>
 ```bash cURL
@@ -931,7 +931,7 @@ print(payout.id)
 
 
 
-### Campos de respuesta
+### Campos de respuesta {#response-fields}
 
 Campo | Tipo | Descripción
 ---|:---:|---
@@ -972,7 +972,7 @@ simular un rechazo.
 ***
 
 
-Listar disputas
+Listar disputas {#list-disputes}
 ----------------
 
 
@@ -1005,7 +1005,7 @@ Código ISO de tres letras. Minúsculas.
 </ParamField>
 
 
-### Solicitud
+### Solicitud {#request}
 
 <CodeGroup>
 ```bash cURL
@@ -1035,7 +1035,7 @@ print(dispute.id)
 
 
 
-### Campos de respuesta
+### Campos de respuesta {#response-fields}
 
 Campo | Tipo | Descripción
 ---|:---:|---
@@ -1076,7 +1076,7 @@ para simular un rechazo.
 ***
 
 
-## Enviar evidencia de disputa ##
+## Enviar evidencia de disputa {#submit-dispute-evidence} ##
 
 
 <!-- TODO(dispute): rewrite this intro before launch -->
@@ -1105,7 +1105,7 @@ Código ISO de tres letras. Minúsculas.
 	</ParamField>
 
 
-### Solicitud
+### Solicitud {#request}
 
 <CodeGroup>
 ```bash cURL
@@ -1133,7 +1133,7 @@ print(dispute.id)
 
 
 
-### Campos de respuesta
+### Campos de respuesta {#response-fields}
 
 Campo | Tipo | Descripción
 ---|:---:|---
@@ -1174,7 +1174,7 @@ para simular un rechazo.
 ***
 
 
-##   Crear una sesión de checkout   [#session-10]
+##   Crear una sesión de checkout   [#session-10] {#create-a-checkout-session-#session-10}
 
 
 
@@ -1204,7 +1204,7 @@ Código ISO de tres letras. Minúsculas.
 </ParamField>
 
 
-### Solicitud
+### Solicitud {#request}
 
 <CodeGroup>
 ```bash cURL
@@ -1233,7 +1233,7 @@ print(session.id)
 
 
 
-### Campos de respuesta
+### Campos de respuesta {#response-fields}
 
 Campo | Tipo | Descripción
 ---|:---:|---
@@ -1274,7 +1274,7 @@ para simular un rechazo.
 ***
 
 
-## Verificar un webhook
+## Verificar un webhook {#verify-a-webhook}
 
 
 
@@ -1306,7 +1306,7 @@ Código ISO de tres letras. Minúsculas.
 	</ParamField>
 
 
-### Solicitud
+### Solicitud {#request}
 
 <CodeGroup>
 ```bash cURL
@@ -1336,7 +1336,7 @@ print(webhook.id)
 
 
 
-### Campos de respuesta
+### Campos de respuesta {#response-fields}
 
 Campo | Tipo | Descripción
 ---|:---:|---
@@ -1376,7 +1376,7 @@ para simular un rechazo.
 
 ***
 
-## Webhooks
+## Webhooks {#webhooks}
 
 Ledger envía un `POST` a tu endpoint cada vez que sucede algo interesante. Responde
 con cualquier `2xx` en 10 segundos o reintentamos con retroceso exponencial durante  __3 días__.
@@ -1399,7 +1399,7 @@ Se dispara cuando un pago saliente llega a la cuenta bancaria del comerciante.
 </Accordion>
 </AccordionGroup>
 
-### Verificación de firmas
+### Verificación de firmas {#verifying-signatures}
 
 1) lee el encabezado `Ledger-Signature`
 2) divídelo por `,` en las partes `t=` y `v1=`
@@ -1417,7 +1417,7 @@ if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1))) throw new E
 ![Intentos de webhook](/images/webhooks/attempts.png)
 </Frame>
 
-## Límites de tasa
+## Límites de tasa {#rate-limits}
 
 - [x] 100 solicitudes por segundo por clave de API
 - [ ] margen de ráfagas de 500 solicitudes (próximamente)
@@ -1426,7 +1426,7 @@ if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1))) throw new E
 Cuando obtengas un `429`, retrocede. No reintentes en un bucle cerrado; solo lo empeorarás
 y eventualmente bloquearemos la clave durante una hora.
 
-## Registro de cambios
+## Registro de cambios {#changelog}
 
 <Update label="2026-08-14" description="Capturas parciales">
 `POST /v1/payments/{id}/capture` ahora acepta un `amount` menor que el importe autorizado.
@@ -1442,7 +1442,7 @@ Las claves que comienzan con `rk_` se pueden limitar a un subconjunto de endpoin
 Los endpoints de disputas dejaron la fase beta. Las cargas de evidencia están limitadas a 5 MB por archivo.
 </Update>
 
-## Preguntas frecuentes
+## Preguntas frecuentes {#faq}
 
 <AccordionGroup>
 <Accordion title="¿Almacenan los números de tarjeta?">
@@ -1456,7 +1456,7 @@ Solo con una clave publicable (`pk_`), que puede crear sesiones de checkout y na
 </Accordion>
 </AccordionGroup>
 
-## Glosario
+## Glosario {#glossary}
 
 Término | Definición
 --- | ---
