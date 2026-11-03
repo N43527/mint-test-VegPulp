@@ -42,7 +42,6 @@
             "pages": [
               "es/index",
               "es/quickstart",
-              "es/poor-format",
               "es/ledger-api-reference"
             ]
           },
